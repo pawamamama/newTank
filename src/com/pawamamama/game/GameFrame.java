@@ -1,6 +1,8 @@
 package com.pawamamama.game;
 
 import java.awt.*;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 //静态导入常量类所有的成员
@@ -16,10 +18,12 @@ import static com.pawamamama.util.Constant.*;
  * @author pawamamama
  * @date 2026/10/4
  */
-@SuppressWarnings({"all" })
+@SuppressWarnings({"all"})
 public class GameFrame extends Frame {
     //游戏状态
     public static int gameState;
+    //菜单指向
+    private int menuIndex;
 
     //初始化
     public GameFrame() throws HeadlessException {
@@ -48,25 +52,13 @@ public class GameFrame extends Frame {
     private void initGame() {
         gameState = STATE_MENU;
     }
-
-    // 初始化事件监听
-    private void initEventListener() {
-        //注册监听事件
-        addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent e) {
-                System.exit(0); // 关闭
-            }
-        });
-    }
-
     /**
      * 是Frame类方法，继承下来的方法，该方法负责绘制工作
      * 不能主动调用，必须通过 repaint();去回调重绘方法
      *
      * @param g the specified Graphics window
      */
-    public void paint(Graphics g) {
+    public void update(Graphics g) {
         g.setFont(FONT);
         //根据不同状态绘制不同内容
         switch (gameState) {
@@ -86,6 +78,7 @@ public class GameFrame extends Frame {
                 drawOver(g);
                 break;
         }
+
     }
 
 
@@ -111,10 +104,17 @@ public class GameFrame extends Frame {
         //行间距
         final int DIS = 50;
         for (int i = 0; i < MENUS.length; i++) {
+            //选中时颜色变化
+            if (menuIndex == i) {//选中时字体为红色
+                g.setColor(Color.RED);
+            } else {
+                g.setColor(Color.WHITE);
+            }
             //递增行间距
             g.drawString(MENUS[i], x, y + DIS * i);
         }
     }
+
     private void drawHelp(Graphics g) {
 
     }
@@ -128,6 +128,86 @@ public class GameFrame extends Frame {
     }
 
     private void drawOver(Graphics g) {
+    }
+
+    // 初始化事件监听，按键处理
+    private void initEventListener() {
+        //注册监听事件
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                System.exit(0); // 关闭
+            }
+        });
+
+        //添加按键监听事件
+        addKeyListener(new KeyAdapter() {
+            //按键被按下的时候被回调用的方法
+            @Override
+            public void keyPressed(KeyEvent e) {
+                //被按下的键值
+                int keyCode = e.getKeyCode();
+                //不同的游戏状态，给出不同的方法处理
+                switch (gameState) {
+                    case STATE_MENU:
+                        //当在菜单状态时候按下的按键处理
+                        keyEventMenu(keyCode);
+                        break;
+                    case STATE_HELP:
+                        keyEventHelp(keyCode);
+                        break;
+                    case STATE_ABOUT:
+                        keyEventAbout(keyCode);
+                        break;
+                    case STATE_RUN:
+                        keyEventRun(keyCode);
+                        break;
+                    case STATE_OVER:
+                        keyEventOver(keyCode);
+                        break;
+                }
+            }
+
+            //按键被松开的时候
+            @Override
+            public void keyReleased(KeyEvent e) {
+                super.keyReleased(e);
+            }
+        });
+    }
+    private void keyEventOver(int keyCode) {
+    }
+
+    private void keyEventRun(int keyCode) {
+
+    }
+
+    private void keyEventAbout(int keyCode) {
+
+    }
+
+    private void keyEventHelp(int keyCode) {
+
+    }
+
+    //菜单状态按键处理
+    private void keyEventMenu(int keyCode) {
+        switch (keyCode) {
+            case KeyEvent.VK_UP:
+            case KeyEvent.VK_W:
+                if (--menuIndex < 0) {//如果向上键是第一个自动跳到最后一个
+                    menuIndex = MENUS.length - 1;//以后加入标题可以自动获取到正确数值
+                }
+                break;
+            case KeyEvent.VK_DOWN:
+            case KeyEvent.VK_S:
+
+                if (++menuIndex > MENUS.length - 1) {//说明到最后一行了，直接跳到首行
+                    menuIndex = 0;
+                }
+                break;
+        }
+        repaint();//重绘窗口
     }
 
 }
