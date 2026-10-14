@@ -19,7 +19,7 @@ import static com.pawamamama.util.Constant.*;
  * @date 2026/10/4
  */
 @SuppressWarnings({"all"})
-public class GameFrame extends Frame {
+public class GameFrame extends Frame implements Runnable {
     //游戏状态
     public static int gameState;
     //菜单指向
@@ -30,6 +30,8 @@ public class GameFrame extends Frame {
         initGame();
         initFrame();
         initEventListener();
+        //线程启动用于刷新
+        new Thread(this).start();
     }
 
     //窗口属性初始化
@@ -44,14 +46,14 @@ public class GameFrame extends Frame {
         setResizable(false);
         //设置窗口可见
         setVisible(true);
-        //重绘
-        repaint();
+
     }
 
     //对游戏状态进行初始化
     private void initGame() {
         gameState = STATE_MENU;
     }
+
     /**
      * 是Frame类方法，继承下来的方法，该方法负责绘制工作
      * 不能主动调用，必须通过 repaint();去回调重绘方法
@@ -124,7 +126,11 @@ public class GameFrame extends Frame {
     }
 
     private void drawRun(Graphics g) {
-
+        //对菜单进行绘制
+        //绘制黑色背景
+        g.setColor(Color.BLACK);
+        //填充矩形
+        g.fillRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
     }
 
     private void drawOver(Graphics g) {
@@ -175,6 +181,7 @@ public class GameFrame extends Frame {
             }
         });
     }
+
     private void keyEventOver(int keyCode) {
     }
 
@@ -206,8 +213,32 @@ public class GameFrame extends Frame {
                     menuIndex = 0;
                 }
                 break;
+            case KeyEvent.VK_ENTER://开始游戏
+                newGame();
+                break;
         }
-        repaint();//重绘窗口
+
     }
 
+    /**
+     * 开始新游戏的方法
+     */
+    private void newGame() {
+        gameState = STATE_RUN;
+        //创建坦克对象，敌人的坦克对象
+
+    }
+
+    @Override
+    public void run() {
+        while (true) {
+            repaint();
+            //线程休眠
+            try {
+                Thread.sleep(REPAINT_INTERVAL);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
 }
