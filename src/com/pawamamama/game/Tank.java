@@ -6,6 +6,8 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.pawamamama.util.Constant.*;
+
 /**
  * Class: Tank 坦克类
  *
@@ -59,11 +61,12 @@ public class Tank {
     }
 
     /**
-     * 绘制坦克
+     * 绘制坦克,每一帧都要调用的
      *
      * @param g
      */
     public void draw(Graphics g) {
+        logic();
         //设置画笔
         g.setColor(color);
         //绘制坦克的圆
@@ -93,6 +96,64 @@ public class Tank {
         g2d.setColor(color);
         g2d.drawLine(x, y, endX, endY);
         g2d.dispose();                              // 还原
+    }
+
+    //坦克逻辑处理,每一帧都要处理，所以在draw里面
+    private void logic() {
+        switch (state) {
+            case STATE_STAND:
+                break;
+            case STATE_MOVE:
+                mathMove();
+                break;
+            case STATE_DIE:
+                break;
+        }
+    }
+
+    private void move() {
+        switch (dir) {
+            case DIR_UP:
+                //向上走，如果y大于半径就没撞墙，要是小于就说明撞墙不给走了
+                if (y > RADIUS) {
+                    y -= speed;//所以不动
+                }
+                break;
+            case DIR_DOWN:
+                if (y < FRAME_HEIGHT - RADIUS) {
+                    y += speed;
+                }
+                break;
+            case DIR_LEFT:
+                if (x > RADIUS) {
+                    x -= speed;
+                }
+                break;
+            case DIR_RIGHT:
+                if (x < FRAME_WIDTH - RADIUS) {
+                    x += speed;
+                }
+                break;
+
+        }
+    }
+
+    private void mathMove() {
+
+            switch (dir) {
+                case DIR_UP:
+                    y = Math.max(  GameFrame.titleBarHeight + RADIUS, y - speed);
+                    break;
+                case DIR_DOWN:
+                    y = Math.min(FRAME_HEIGHT- RADIUS, y + speed);
+                    break;
+                case DIR_LEFT:
+                    x = Math.max(RADIUS, x - speed);
+                    break;
+                case DIR_RIGHT:
+                    x = Math.min(FRAME_WIDTH - RADIUS, x + speed);
+                    break;
+        }
     }
 
     public int getX() {

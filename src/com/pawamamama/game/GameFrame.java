@@ -24,9 +24,10 @@ public class GameFrame extends Frame implements Runnable {
     public static int gameState;
     //菜单指向
     private int menuIndex;
+    //标题栏的高度
+    public static int titleBarHeight;
     //坦克
     private Tank myTank;
-
     //初始化
     public GameFrame() throws HeadlessException {
         initGame();
@@ -48,6 +49,9 @@ public class GameFrame extends Frame implements Runnable {
         setResizable(false);
         //设置窗口可见
         setVisible(true);
+        //求标题栏的高度
+        titleBarHeight  = getInsets().top;
+
 
     }
 
@@ -181,12 +185,32 @@ public class GameFrame extends Frame implements Runnable {
             //按键被松开的时候
             @Override
             public void keyReleased(KeyEvent e) {
-                super.keyReleased(e);
+                int keyCode = e.getKeyCode();
+                if (gameState == STATE_RUN) {
+                    keyReleasedEventRun(keyCode);
+                }
             }
+
         });
     }
 
     private void keyEventOver(int keyCode) {
+    }
+
+    //按键松开，游戏中的处理方法
+    private void keyReleasedEventRun(int keyCode) {
+        switch (keyCode) {
+            case KeyEvent.VK_UP:
+            case KeyEvent.VK_W:
+            case KeyEvent.VK_DOWN:
+            case KeyEvent.VK_S:
+            case KeyEvent.VK_LEFT:
+            case KeyEvent.VK_A:
+            case KeyEvent.VK_RIGHT:
+            case KeyEvent.VK_D:
+                //松开就是静止状态
+                myTank.setState(Tank.STATE_STAND);
+        }
     }
 
     private void keyEventRun(int keyCode) {
@@ -194,18 +218,23 @@ public class GameFrame extends Frame implements Runnable {
             case KeyEvent.VK_UP:
             case KeyEvent.VK_W:
                 myTank.setDir(Tank.DIR_UP);
+                //坦克状态
+                myTank.setState(Tank.STATE_MOVE);
                 break;
             case KeyEvent.VK_DOWN:
             case KeyEvent.VK_S:
                 myTank.setDir(Tank.DIR_DOWN);
+                myTank.setState(Tank.STATE_MOVE);
                 break;
             case KeyEvent.VK_LEFT:
             case KeyEvent.VK_A:
                 myTank.setDir(Tank.DIR_LEFT);
+                myTank.setState(Tank.STATE_MOVE);
                 break;
             case KeyEvent.VK_RIGHT:
             case KeyEvent.VK_D:
                 myTank.setDir(Tank.DIR_RIGHT);
+                myTank.setState(Tank.STATE_MOVE);
                 break;
         }
 
