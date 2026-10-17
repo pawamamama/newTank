@@ -5,7 +5,7 @@ import com.pawamamama.util.MyUtil;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
-
+ import com.pawamamama.game.Bullet;
 import static com.pawamamama.util.Constant.*;
 
 /**
@@ -19,20 +19,37 @@ import static com.pawamamama.util.Constant.*;
  */
 @SuppressWarnings({"all"})
 public class Tank {
+    //不写成静态的话，每次创建对象都可能加载（敌人坦克）
+    private  static  Image[] tankImg;
+    private static  Image[] enemyImg;
+    //静态代码快
+    static {
+        tankImg = new Image[4];
+        tankImg[0] = Toolkit.getDefaultToolkit().getImage("res/player_up.png");
+        tankImg[1] = Toolkit.getDefaultToolkit().getImage("res/player_down.png");
+        tankImg[2] = Toolkit.getDefaultToolkit().getImage("res/player_left.png");
+        tankImg[3] = Toolkit.getDefaultToolkit().getImage("res/player_right.png");
+        enemyImg =  new Image[4];
+        enemyImg[0] = Toolkit.getDefaultToolkit().getImage("res/enemy_up.png");
+        enemyImg[1] = Toolkit.getDefaultToolkit().getImage("res/enemy_down.png");
+        enemyImg[2] = Toolkit.getDefaultToolkit().getImage("res/enemy_left.png");
+        enemyImg[3] = Toolkit.getDefaultToolkit().getImage("res/enemy_right.png");
+    }
     //在这定义可以直接继承直接 类名.常量名 去使用
     //四个方向,上下左右
     public static final int DIR_UP = 0;
     public static final int DIR_DOWN = 1;
     public static final int DIR_LEFT = 2;
     public static final int DIR_RIGHT = 3;
-    //默认速度
     //坦克状态
     public static final int STATE_STAND = 0;//静止
     public static final int STATE_MOVE = 1;//移动
     public static final int STATE_DIE = 2;//死亡
     //坦克半径
     public static final int RADIUS = 20;
-    public static final int speed = 4;//每次刷新跑4个像素
+    //默认速度
+    public static final int DEFAULT_SPEED = 4;
+    public static final int speed = DEFAULT_SPEED;//每次刷新跑4个像素
     //坦克初始生命
     public static final int DEFAULT_HP = 1000;
     //坐标
@@ -49,8 +66,8 @@ public class Tank {
     private int state = STATE_STAND;
     //颜色
     private Color color;
-    //TODO 炮弹
-    private List bullets = new ArrayList();
+    //TODO 炮弹泛型类
+    private List<Bullet> bullets = new ArrayList();
 
     public Tank(int x, int y, int dir) {
         this.x = x;
@@ -67,6 +84,28 @@ public class Tank {
      */
     public void draw(Graphics g) {
         logic();
+        //画坦克
+        //drawTank(g);
+        drawImgTank(g);
+        //画所有子弹
+        drawBullets(g);
+    }
+
+    /**
+     * 使用图片的方式来画坦克
+     * 素材是原生 16x16，这里指定画成 40x40（RADIUS*2），由 Java 放大
+     * 配合 update() 里的 NEAREST 渲染提示，放大后边缘依然锐利
+     *
+     * @param g
+     */
+    private void drawImgTank(Graphics g) {
+        g.drawImage(tankImg[dir],
+                x - RADIUS, y - RADIUS,
+                RADIUS << 1, RADIUS << 1,
+                null);
+    }
+    //纯画的方式
+    private void drawTank(Graphics g) {
         //设置画笔
         g.setColor(color);
         //绘制坦克的圆
@@ -113,19 +152,56 @@ public class Tank {
 
     private void mathMove() {
 
-            switch (dir) {
-                case DIR_UP:
-                    y = Math.max(  GameFrame.titleBarHeight + RADIUS, y - speed);
-                    break;
-                case DIR_DOWN:
-                    y = Math.min(FRAME_HEIGHT- RADIUS, y + speed);
-                    break;
-                case DIR_LEFT:
-                    x = Math.max(RADIUS, x - speed);
-                    break;
-                case DIR_RIGHT:
-                    x = Math.min(FRAME_WIDTH - RADIUS, x + speed);
-                    break;
+        switch (dir) {
+            case DIR_UP:
+                y = Math.max(GameFrame.titleBarHeight + RADIUS, y - speed);
+                break;
+            case DIR_DOWN:
+                y = Math.min(FRAME_HEIGHT - RADIUS, y + speed);
+                break;
+            case DIR_LEFT:
+                x = Math.max(RADIUS, x - speed);
+                break;
+            case DIR_RIGHT:
+                x = Math.min(FRAME_WIDTH - RADIUS, x + speed);
+                break;
+        }
+    }
+
+    //当坦克开火方法
+    //创建一个子弹对象，子弹对象的属性通过坦克信息获得
+    //然后将创建的子弹添加到弹夹容器中
+    public void fire() {
+        int bulletX = x;
+        int bulletY = y;
+        switch (dir) {
+            case DIR_UP:
+                bulletY -= RADIUS ;
+                break;
+            case DIR_DOWN:
+                bulletY += RADIUS ;
+                break;
+            case DIR_LEFT:
+                bulletX -= RADIUS ;
+                break;
+            case DIR_RIGHT:
+                bulletX += RADIUS ;
+                break;
+        }
+        /**
+         * 坦克的atk 和 颜色
+         */
+        Bullet bullet = new Bullet(bulletX,bulletY,dir,atk,color);
+        bullets.add(bullet);
+    }
+
+    /**
+     * 将当前坦克发射的所有子弹绘制出来
+     * @param g
+     */
+    private void drawBullets(Graphics g) {
+        for (Bullet bullet : bullets) {
+            bullet.draw(g);
         }
     }
 
@@ -160,6 +236,7 @@ public class Tank {
     public void setAtk(int atk) {
         this.atk = atk;
     }
+
 
     public int getDef() {
         return def;
@@ -200,4 +277,5 @@ public class Tank {
     public void setBullets(List bullets) {
         this.bullets = bullets;
     }
+
 }

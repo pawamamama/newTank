@@ -67,6 +67,11 @@ public class GameFrame extends Frame implements Runnable {
      * @param g the specified Graphics window
      */
     public void update(Graphics g) {
+        //画笔升级成 Graphics2D，才能设置渲染提示
+        Graphics2D g2d = (Graphics2D) g;
+        //图片缩放用「最近邻」：直接复制最近的像素，不造过渡色，像素画放大不发糊
+        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
         g.setFont(FONT);
         //根据不同状态绘制不同内容
         switch (gameState) {
@@ -236,6 +241,9 @@ public class GameFrame extends Frame implements Runnable {
                 myTank.setDir(Tank.DIR_RIGHT);
                 myTank.setState(Tank.STATE_MOVE);
                 break;
+                case KeyEvent.VK_SPACE:
+                    myTank.fire();
+                    break;
         }
 
     }
@@ -283,6 +291,7 @@ public class GameFrame extends Frame implements Runnable {
     @Override
     public void run() {
         while (true) {
+            //在此调用repaint，回调update
             repaint();
             //线程休眠
             try {
