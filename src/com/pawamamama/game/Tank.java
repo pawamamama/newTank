@@ -111,33 +111,6 @@ public class Tank {
         }
     }
 
-    private void move() {
-        switch (dir) {
-            case DIR_UP:
-                //向上走，如果y大于半径就没撞墙，要是小于就说明撞墙不给走了
-                if (y > RADIUS) {
-                    y -= speed;//所以不动
-                }
-                break;
-            case DIR_DOWN:
-                if (y < FRAME_HEIGHT - RADIUS) {
-                    y += speed;
-                }
-                break;
-            case DIR_LEFT:
-                if (x > RADIUS) {
-                    x -= speed;
-                }
-                break;
-            case DIR_RIGHT:
-                if (x < FRAME_WIDTH - RADIUS) {
-                    x += speed;
-                }
-                break;
-
-        }
-    }
-
     private void mathMove() {
 
             switch (dir) {
