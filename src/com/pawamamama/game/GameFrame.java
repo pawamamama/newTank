@@ -5,6 +5,7 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.awt.image.BufferedImage;
 //静态导入常量类所有的成员
 import static com.pawamamama.util.Constant.*;
 
@@ -20,6 +21,8 @@ import static com.pawamamama.util.Constant.*;
  */
 @SuppressWarnings({"all"})
 public class GameFrame extends Frame implements Runnable {
+    //定义一张和屏幕的大小一致的图片
+  private BufferedImage bufferedImage =   new BufferedImage(FRAME_WIDTH,FRAME_HEIGHT,BufferedImage.TYPE_4BYTE_ABGR);
     //游戏状态
     public static int gameState;
     //菜单指向
@@ -66,11 +69,12 @@ public class GameFrame extends Frame implements Runnable {
      *
      * @param g the specified Graphics window
      */
-    public void update(Graphics g) {
+    public void update(Graphics g1) {
         //画笔升级成 Graphics2D，才能设置渲染提示
-        Graphics2D g2d = (Graphics2D) g;
+        //解决双缓冲，得到图片的画笔
+        Graphics2D g= (Graphics2D)bufferedImage.getGraphics();
         //图片缩放用「最近邻」：直接复制最近的像素，不造过渡色，像素画放大不发糊
-        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
                 RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
         g.setFont(FONT);
         //根据不同状态绘制不同内容
@@ -88,10 +92,11 @@ public class GameFrame extends Frame implements Runnable {
                 drawRun(g);
                 break;
             case STATE_OVER:
-                drawOver(g);
-                break;
-        }
-
+        drawOver(g);
+        break;
+    }
+        //使用系统画笔，将图片绘制到frame （我的理解是画成一张图片最后整体画上，刷
+        g1.drawImage(bufferedImage, 0, 0, this);//屏幕
     }
 
 
