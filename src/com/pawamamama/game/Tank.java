@@ -1,6 +1,7 @@
 package com.pawamamama.game;
 
 import com.pawamamama.util.BulletsPool;
+import com.pawamamama.util.Constant;
 import com.pawamamama.util.MyUtil;
 
 import java.awt.*;
@@ -71,6 +72,8 @@ public class Tank {
     private int state = STATE_STAND;
     //颜色
     private Color color;
+    //是否是敌人坦克
+    private boolean isEnemy = false;
     //TODO 炮弹泛型类
     private List<Bullet> bullets = new ArrayList();
 
@@ -80,6 +83,19 @@ public class Tank {
         this.dir = dir;
         //随机颜色
         color = MyUtil.getRandomColor();//工具类实现
+    }
+
+    //创建一个敌人坦克
+    public static Tank createTank() {
+        //生成在左上角还是右上角，
+        int x = MyUtil.getRandomNumber(0, 2) == 0 ? RADIUS : FRAME_WIDTH - RADIUS;
+        int y = GameFrame.titleBarHeight + RADIUS;//标题栏+半径
+        int dir = DIR_DOWN;
+        Tank enemy = new Tank(x, y, dir);
+        enemy.isEnemy = true;
+        //TODO
+        enemy.state = STATE_MOVE;
+        return enemy;
     }
 
     /**
@@ -112,13 +128,21 @@ public class Tank {
     private void drawImgTank(Graphics g) {
         // 补偿量：图片整体右下移 1 像素，让炮管中心对齐到 (x, y)
         final int FIX = 1;
-
-        g.drawImage(tankImg[dir],
-                x - RADIUS + FIX,   // 左上角 x，+FIX 抵消素材的偏左
-                y - RADIUS + FIX,   // 左上角 y，+FIX 抵消素材的偏上
-                RADIUS << 1,        // 目标宽 40（= RADIUS*2）
-                RADIUS << 1,        // 目标高 40
-                null);
+        if (isEnemy) {//是敌人坦克
+            g.drawImage(enemyImg[dir],
+                    x - RADIUS + FIX,   // 左上角 x，+FIX 抵消素材的偏左
+                    y - RADIUS + FIX,   // 左上角 y，+FIX 抵消素材的偏上
+                    RADIUS << 1,        // 目标宽 40（= RADIUS*2）
+                    RADIUS << 1,        // 目标高 40
+                    null);
+        } else {//玩家坦克
+            g.drawImage(tankImg[dir],
+                    x - RADIUS + FIX,   // 左上角 x，+FIX 抵消素材的偏左
+                    y - RADIUS + FIX,   // 左上角 y，+FIX 抵消素材的偏上
+                    RADIUS << 1,        // 目标宽 40（= RADIUS*2）
+                    RADIUS << 1,        // 目标高 40
+                    null);
+        }
     }
 
     //纯画的方式
@@ -235,7 +259,7 @@ public class Tank {
                 BulletsPool.theReturn(bullet);//放回子弹池
             }
         }
-       // System.out.println("坦克子弹的数量" + bullets.size());
+        // System.out.println("坦克子弹的数量" + bullets.size());
     }
 
     public int getX() {

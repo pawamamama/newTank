@@ -6,6 +6,8 @@ import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.List;
 //静态导入常量类所有的成员
 import static com.pawamamama.util.Constant.*;
 
@@ -22,7 +24,7 @@ import static com.pawamamama.util.Constant.*;
 @SuppressWarnings({"all"})
 public class GameFrame extends Frame implements Runnable {
     //定义一张和屏幕的大小一致的图片
-  private BufferedImage bufferedImage =   new BufferedImage(FRAME_WIDTH,FRAME_HEIGHT,BufferedImage.TYPE_4BYTE_ABGR);
+    private BufferedImage bufferedImage = new BufferedImage(FRAME_WIDTH, FRAME_HEIGHT, BufferedImage.TYPE_4BYTE_ABGR);
     //游戏状态
     public static int gameState;
     //菜单指向
@@ -31,6 +33,9 @@ public class GameFrame extends Frame implements Runnable {
     public static int titleBarHeight;
     //坦克
     private Tank myTank;
+    //敌方坦克
+    private List<Tank> enemyTanks = new ArrayList<Tank>();
+
     //初始化
     public GameFrame() throws HeadlessException {
         initGame();
@@ -53,7 +58,7 @@ public class GameFrame extends Frame implements Runnable {
         //设置窗口可见
         setVisible(true);
         //求标题栏的高度
-        titleBarHeight  = getInsets().top;
+        titleBarHeight = getInsets().top;
 
 
     }
@@ -72,7 +77,7 @@ public class GameFrame extends Frame implements Runnable {
     public void update(Graphics g1) {
         //画笔升级成 Graphics2D，才能设置渲染提示
         //解决双缓冲，得到图片的画笔
-        Graphics2D g= (Graphics2D)bufferedImage.getGraphics();
+        Graphics2D g = (Graphics2D) bufferedImage.getGraphics();
         //图片缩放用「最近邻」：直接复制最近的像素，不造过渡色，像素画放大不发糊
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
                 RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
@@ -92,9 +97,9 @@ public class GameFrame extends Frame implements Runnable {
                 drawRun(g);
                 break;
             case STATE_OVER:
-        drawOver(g);
-        break;
-    }
+                drawOver(g);
+                break;
+        }
         //使用系统画笔，将图片绘制到frame （我的理解是画成一张图片最后整体画上，刷
         g1.drawImage(bufferedImage, 0, 0, this);//屏幕
     }
@@ -147,8 +152,16 @@ public class GameFrame extends Frame implements Runnable {
         g.setColor(Color.BLACK);
         //填充矩形
         g.fillRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
-        //画坦克
+        //绘制敌人坦克
+        drawEnemyTanks(g);
+        //我方坦克
         myTank.draw(g);
+    }
+    //绘制所有敌人
+    private void drawEnemyTanks(Graphics g) {
+        for (int i = 0; i < enemyTanks.size(); i++) {
+            enemyTanks.get(i).draw(g);
+        }
     }
 
     private void drawOver(Graphics g) {
@@ -246,9 +259,9 @@ public class GameFrame extends Frame implements Runnable {
                 myTank.setDir(Tank.DIR_RIGHT);
                 myTank.setState(Tank.STATE_MOVE);
                 break;
-                case KeyEvent.VK_SPACE:
-                    myTank.fire();
-                    break;
+            case KeyEvent.VK_SPACE:
+                myTank.fire();
+                break;
         }
 
     }
@@ -291,6 +304,20 @@ public class GameFrame extends Frame implements Runnable {
         gameState = STATE_RUN;
         //创建坦克对象，敌人的坦克对象
         myTank = new Tank(100, 100, Tank.DIR_DOWN);
+        //使用单独的线程生产敌人坦克( lambda 表达式（匿名函数）)
+        new Thread(() -> {
+            while (true) {
+                if (enemyTanks.size() < ENEMY_MAX_COUNT) {
+                    Tank enemy = Tank.createTank();
+                    enemyTanks.add(enemy);
+                }
+                try {//间隔生敌
+                    Thread.sleep(ENEMY_BORN__INTERVAL);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
     }
 
     @Override

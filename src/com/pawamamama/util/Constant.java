@@ -11,7 +11,7 @@ import java.awt.*;
  * @author pawamamama
  * @date 2026/10/4
  */
-@SuppressWarnings({"all" })
+@SuppressWarnings({"all"})
 public final class Constant {
     //------------------游戏窗口-------------------------
     public static final String GAME_TITLE = "坦克大战第二版:pawamamama";
@@ -35,8 +35,11 @@ public final class Constant {
             "退出游戏",
     };
     //字体
-    public  static final Font FONT = new Font("宋体", Font.BOLD, 24);
+    public static final Font FONT = new Font("宋体", Font.BOLD, 24);
     //线程休眠多长时间
     public static final int REPAINT_INTERVAL = 30;
-
+    //敌人最大数量
+    public static final int ENEMY_MAX_COUNT = 10;
+    //敌人生成间隔
+    public static final int ENEMY_BORN__INTERVAL = 5000;
 }
