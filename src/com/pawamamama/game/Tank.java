@@ -1,11 +1,14 @@
 package com.pawamamama.game;
 
+import com.pawamamama.util.BulletsPool;
 import com.pawamamama.util.MyUtil;
 
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
- import com.pawamamama.game.Bullet;
+
+import com.pawamamama.game.Bullet;
+
 import static com.pawamamama.util.Constant.*;
 
 /**
@@ -20,8 +23,9 @@ import static com.pawamamama.util.Constant.*;
 @SuppressWarnings({"all"})
 public class Tank {
     //不写成静态的话，每次创建对象都可能加载（敌人坦克）
-    private  static  Image[] tankImg;
-    private static  Image[] enemyImg;
+    private static Image[] tankImg;
+    private static Image[] enemyImg;
+
     //静态代码快
     static {
         tankImg = new Image[4];
@@ -29,12 +33,13 @@ public class Tank {
         tankImg[1] = Toolkit.getDefaultToolkit().getImage("res/player_down.png");
         tankImg[2] = Toolkit.getDefaultToolkit().getImage("res/player_left.png");
         tankImg[3] = Toolkit.getDefaultToolkit().getImage("res/player_right.png");
-        enemyImg =  new Image[4];
+        enemyImg = new Image[4];
         enemyImg[0] = Toolkit.getDefaultToolkit().getImage("res/enemy_up.png");
         enemyImg[1] = Toolkit.getDefaultToolkit().getImage("res/enemy_down.png");
         enemyImg[2] = Toolkit.getDefaultToolkit().getImage("res/enemy_left.png");
         enemyImg[3] = Toolkit.getDefaultToolkit().getImage("res/enemy_right.png");
     }
+
     //在这定义可以直接继承直接 类名.常量名 去使用
     //四个方向,上下左右
     public static final int DIR_UP = 0;
@@ -92,24 +97,36 @@ public class Tank {
     }
 
     /**
-     * 使用图片的方式来画坦克
-     * 素材是原生 16x16，这里指定画成 40x40（RADIUS*2），由 Java 放大
-     * 配合 update() 里的 NEAREST 渲染提示，放大后边缘依然锐利
-     *
-     * @param g
+     * 使用图片的方式画坦克
+     * <p>
+     * 素材是原生 16x16，绘制时放大到 40x40（RADIUS*2）。
+     * <p>
+     * 为什么要加 FIX 偏移：
+     * 原图格子是 16x16，几何中心在 8.0；
+     * 但坦克实际占 x=1~13、炮管占 x=7，两者的中心都是 7.5；
+     * 也就是说整辆坦克在格子里偏左 0.5 像素、偏上 0.5 像素。
+     * 放大 2.5 倍后，屏幕上就偏了约 1.25 像素。
+     * 不补这个偏移，炮管中心就不在逻辑坐标 (x, y) 上，
+     * 而 fire() 是从 (x, y) 发射的，看起来子弹就歪到了炮管侧边。
      */
     private void drawImgTank(Graphics g) {
+        // 补偿量：图片整体右下移 1 像素，让炮管中心对齐到 (x, y)
+        final int FIX = 1;
+
         g.drawImage(tankImg[dir],
-                x - RADIUS, y - RADIUS,
-                RADIUS << 1, RADIUS << 1,
+                x - RADIUS + FIX,   // 左上角 x，+FIX 抵消素材的偏左
+                y - RADIUS + FIX,   // 左上角 y，+FIX 抵消素材的偏上
+                RADIUS << 1,        // 目标宽 40（= RADIUS*2）
+                RADIUS << 1,        // 目标高 40
                 null);
     }
+
     //纯画的方式
     private void drawTank(Graphics g) {
         //设置画笔
         g.setColor(color);
         //绘制坦克的圆
-        //整体左上方移动才能正确让xy在中心点
+        //整体左上方移动才能正确让xy在中
         // <<1 左移是乘2
         g.fillOval(x - RADIUS, y - RADIUS, RADIUS << 1, RADIUS << 1);
         //炮筒中点一定是圆心，刚才圆向左上方偏移了，中点就是x,y
@@ -176,33 +193,49 @@ public class Tank {
         int bulletY = y;
         switch (dir) {
             case DIR_UP:
-                bulletY -= RADIUS ;
+                bulletY -= RADIUS;
                 break;
             case DIR_DOWN:
-                bulletY += RADIUS ;
+                bulletY += RADIUS;
                 break;
             case DIR_LEFT:
-                bulletX -= RADIUS ;
+                bulletX -= RADIUS;
                 break;
             case DIR_RIGHT:
-                bulletX += RADIUS ;
+                bulletX += RADIUS;
                 break;
         }
         /**
          * 坦克的atk 和 颜色
          */
-        Bullet bullet = new Bullet(bulletX,bulletY,dir,atk,color);
+        Bullet bullet = BulletsPool.get();
+        bullet.setX(bulletX);
+        bullet.setY(bulletY);
+        bullet.setDir(dir);
+        bullet.setAtk(atk);
+        bullet.setColor(color);
+        bullet.setVisible(true);
         bullets.add(bullet);
     }
 
     /**
      * 将当前坦克发射的所有子弹绘制出来
+     *
      * @param g
      */
     private void drawBullets(Graphics g) {
         for (Bullet bullet : bullets) {
             bullet.draw(g);
         }
+        //遍历所有子弹，将不可见的子弹移除，并还原回对象池
+        for (int i = 0; i < bullets.size(); i++) {
+            Bullet bullet = bullets.get(i);
+            if (!bullet.isVisible()) {
+                bullets.remove(i);//删除弹夹里的
+                BulletsPool.theReturn(bullet);//放回子弹池
+            }
+        }
+       // System.out.println("坦克子弹的数量" + bullets.size());
     }
 
     public int getX() {
