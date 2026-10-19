@@ -1,7 +1,8 @@
 package com.pawamamama.game;
 
+import com.pawamamama.Tank.Tank;
+
 import java.awt.*;
-import java.util.Vector;
 
 import static com.pawamamama.util.Constant.FRAME_HEIGHT;
 import static com.pawamamama.util.Constant.FRAME_WIDTH;
@@ -48,7 +49,7 @@ public class Bullet {
         if (!visible) return;//如果不可见了就不绘制
         logic();
         g.setColor(color);
-        //绘制坦克圆和炮弹圆是一样地
+        //绘制坦克圆和炮弹圆是一样的
         g.fillOval(x - RADIUS, y - RADIUS, RADIUS << 1, RADIUS << 1);
     }
 
@@ -85,7 +86,7 @@ public class Bullet {
                 break;
         }
     }
-    
+
 
     public int getX() {
         return x;

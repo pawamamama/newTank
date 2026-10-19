@@ -1,5 +1,9 @@
 package com.pawamamama.game;
 
+import com.pawamamama.Tank.EnemyTank;
+import com.pawamamama.Tank.MyTank;
+import com.pawamamama.Tank.Tank;
+
 import java.awt.*;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
@@ -157,6 +161,7 @@ public class GameFrame extends Frame implements Runnable {
         //我方坦克
         myTank.draw(g);
     }
+
     //绘制所有敌人
     private void drawEnemyTanks(Graphics g) {
         for (int i = 0; i < enemyTanks.size(); i++) {
@@ -303,12 +308,12 @@ public class GameFrame extends Frame implements Runnable {
     private void newGame() {
         gameState = STATE_RUN;
         //创建坦克对象，敌人的坦克对象
-        myTank = new Tank(100, 100, Tank.DIR_DOWN);
+        myTank = new MyTank(100, 100, Tank.DIR_DOWN);
         //使用单独的线程生产敌人坦克( lambda 表达式（匿名函数）)
         new Thread(() -> {
             while (true) {
                 if (enemyTanks.size() < ENEMY_MAX_COUNT) {
-                    Tank enemy = Tank.createTank();
+                    EnemyTank enemy = EnemyTank.createTank();
                     enemyTanks.add(enemy);
                 }
                 try {//间隔生敌

@@ -1,7 +1,7 @@
-package com.pawamamama.game;
+package com.pawamamama.Tank;
 
+import com.pawamamama.game.GameFrame;
 import com.pawamamama.util.BulletsPool;
-import com.pawamamama.util.Constant;
 import com.pawamamama.util.MyUtil;
 
 import java.awt.*;
@@ -22,25 +22,7 @@ import static com.pawamamama.util.Constant.*;
  * @date 2026/10/14
  */
 @SuppressWarnings({"all"})
-public class Tank {
-    //不写成静态的话，每次创建对象都可能加载（敌人坦克）
-    private static Image[] tankImg;
-    private static Image[] enemyImg;
-
-    //静态代码快
-    static {
-        tankImg = new Image[4];
-        tankImg[0] = Toolkit.getDefaultToolkit().getImage("res/player_up.png");
-        tankImg[1] = Toolkit.getDefaultToolkit().getImage("res/player_down.png");
-        tankImg[2] = Toolkit.getDefaultToolkit().getImage("res/player_left.png");
-        tankImg[3] = Toolkit.getDefaultToolkit().getImage("res/player_right.png");
-        enemyImg = new Image[4];
-        enemyImg[0] = Toolkit.getDefaultToolkit().getImage("res/enemy_up.png");
-        enemyImg[1] = Toolkit.getDefaultToolkit().getImage("res/enemy_down.png");
-        enemyImg[2] = Toolkit.getDefaultToolkit().getImage("res/enemy_left.png");
-        enemyImg[3] = Toolkit.getDefaultToolkit().getImage("res/enemy_right.png");
-    }
-
+public abstract class  Tank {
     //在这定义可以直接继承直接 类名.常量名 去使用
     //四个方向,上下左右
     public static final int DIR_UP = 0;
@@ -76,27 +58,18 @@ public class Tank {
     private boolean isEnemy = false;
     //TODO 炮弹泛型类
     private List<Bullet> bullets = new ArrayList();
+    // 补偿量：图片整体右下移 1 像素，让炮管中心对齐到 (x, y)
+    //protected 只有本类和子类，同包能用
+    protected final int FIX = 1;
 
     public Tank(int x, int y, int dir) {
         this.x = x;
         this.y = y;
         this.dir = dir;
-        //随机颜色
+        //随机颜色       方法反反复复反反复复反反复复反反复复反反复复反反复复
         color = MyUtil.getRandomColor();//工具类实现
     }
 
-    //创建一个敌人坦克
-    public static Tank createTank() {
-        //生成在左上角还是右上角，
-        int x = MyUtil.getRandomNumber(0, 2) == 0 ? RADIUS : FRAME_WIDTH - RADIUS;
-        int y = GameFrame.titleBarHeight + RADIUS;//标题栏+半径
-        int dir = DIR_DOWN;
-        Tank enemy = new Tank(x, y, dir);
-        enemy.isEnemy = true;
-        //TODO
-        enemy.state = STATE_MOVE;
-        return enemy;
-    }
 
     /**
      * 绘制坦克,每一帧都要调用的
@@ -124,8 +97,12 @@ public class Tank {
      * 放大 2.5 倍后，屏幕上就偏了约 1.25 像素。
      * 不补这个偏移，炮管中心就不在逻辑坐标 (x, y) 上，
      * 而 fire() 是从 (x, y) 发射的，看起来子弹就歪到了炮管侧边。
+     *
+     *
+     * 2026 10.19 8.42 构建为抽象方法,留给子类去实现
      */
-    private void drawImgTank(Graphics g) {
+    public abstract void drawImgTank(Graphics g);
+   /* {
         // 补偿量：图片整体右下移 1 像素，让炮管中心对齐到 (x, y)
         final int FIX = 1;
         if (isEnemy) {//是敌人坦克
@@ -143,7 +120,7 @@ public class Tank {
                     RADIUS << 1,        // 目标高 40
                     null);
         }
-    }
+    }*/
 
     //纯画的方式
     private void drawTank(Graphics g) {
@@ -335,4 +312,11 @@ public class Tank {
         this.bullets = bullets;
     }
 
+    public boolean isEnemy() {
+        return isEnemy;
+    }
+
+    public void setEnemy(boolean enemy) {
+        isEnemy = enemy;
+    }
 }
