@@ -42,4 +42,8 @@ public final class Constant {
     public static final int ENEMY_MAX_COUNT = 10;
     //敌人生成间隔
     public static final int ENEMY_BORN__INTERVAL = 5000;
+    //敌人ai 决策时间
+    public static final int ENEMY_AI_INTERVAL = 3000;
+    //敌人开火百分比
+    public static final double ENEMY_FIRE_PERCENT = 0.03;
 }
