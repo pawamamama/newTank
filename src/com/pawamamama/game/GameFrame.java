@@ -38,7 +38,7 @@ public class GameFrame extends Frame implements Runnable {
     //坦克
     private Tank myTank;
     //敌方坦克
-    private List<Tank> enemyTanks = new ArrayList<Tank>();
+    private List<EnemyTank> enemyTanks = new ArrayList<EnemyTank>();
 
     //初始化
     public GameFrame() throws HeadlessException {
@@ -160,6 +160,9 @@ public class GameFrame extends Frame implements Runnable {
         drawEnemyTanks(g);
         //我方坦克
         myTank.draw(g);
+        //碰撞检测
+        bulletCollideTank();
+
     }
 
     //绘制所有敌人
@@ -307,7 +310,7 @@ public class GameFrame extends Frame implements Runnable {
      */
     private void newGame() {
         gameState = STATE_RUN;
-        //创建坦克对象，敌人的坦克对象
+        //创建坦克对象
         myTank = new MyTank(100, 100, Tank.DIR_DOWN);
         //使用单独的线程生产敌人坦克( lambda 表达式（匿名函数）)
         new Thread(() -> {
@@ -337,6 +340,17 @@ public class GameFrame extends Frame implements Runnable {
                 e.printStackTrace();
             }
         }
+    }
+    //两种子弹逻辑，两部压成一步
+    private void bulletCollideTank() {
+        for (Tank enemyTank : enemyTanks) {
+            // 敌人的子弹打玩家
+            myTank.collideBullets(enemyTank.getBullets());
+            // 玩家的子弹打敌人
+            enemyTank.collideBullets(myTank.getBullets());
+        }
+
+
     }
 }
 

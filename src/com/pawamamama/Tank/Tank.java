@@ -219,9 +219,7 @@ public abstract class  Tank {
         bullets.add(bullet);
     }
 
-    /**
-     * 将当前坦克发射的所有子弹绘制出来
-     *
+    /**坦克子弹碰撞
      * @param g
      */
     private void drawBullets(Graphics g) {
@@ -230,13 +228,32 @@ public abstract class  Tank {
         }
         //遍历所有子弹，将不可见的子弹移除，并还原回对象池
         for (int i = 0; i < bullets.size(); i++) {
-            Bullet bullet = bullets.get(i);
+            Bullet bullet = bullets  .get(i);
             if (!bullet.isVisible()) {
                 bullets.remove(i);//删除弹夹里的
                 BulletsPool.theReturn(bullet);//放回子弹池
             }
         }
         // System.out.println("坦克子弹的数量" + bullets.size());
+    }
+
+    /**
+     * 子弹碰撞检查，必须是除了自己场上所有的子弹都得遍历
+     * @param bullets
+     */
+    public void collideBullets(List<Bullet> bullets) {
+        //遍历所有子弹，依次和当前坦克进行碰撞检测
+        for (Bullet bullet : bullets) {
+            //子弹和坦克碰上了，应该减少坦克血量，并把子弹归还到子弹池
+            if (MyUtil.isRectangleCollision(x,y,RADIUS,bullet.getX(),bullet.getY())) {
+                //1.子弹消失,设置不可见属性
+                bullet.setVisible(false);
+                //2.减少坦克血量
+                //3.爆炸效果
+            }
+
+        }
+
     }
 
     public int getX() {
