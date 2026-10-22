@@ -1,5 +1,7 @@
 package com.pawamamama.Tank;
 
+import com.pawamamama.util.MyUtil;
+
 import java.awt.*;
 
 /**
@@ -18,10 +20,10 @@ public class MyTank extends Tank {
 
     static {
         tankImg = new Image[4];
-        tankImg[0] = Toolkit.getDefaultToolkit().getImage("res/player_up.png");
-        tankImg[1] = Toolkit.getDefaultToolkit().getImage("res/player_down.png");
-        tankImg[2] = Toolkit.getDefaultToolkit().getImage("res/player_left.png");
-        tankImg[3] = Toolkit.getDefaultToolkit().getImage("res/player_right.png");
+        tankImg[0] = MyUtil.createImg("res/player_up.png");
+        tankImg[1] = MyUtil.createImg("res/player_down.png");
+        tankImg[2] = MyUtil.createImg("res/player_left.png");
+        tankImg[3] = MyUtil.createImg("res/player_right.png");
     }
 
     public MyTank(int x, int y, int dir) {

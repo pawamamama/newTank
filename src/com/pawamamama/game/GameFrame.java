@@ -54,7 +54,7 @@ public class GameFrame extends Frame implements Runnable {
         //设置标题
         setTitle(GAME_TITLE);
         //设置窗口大小
-        setSize(FRAME_WIDTH, FRAME_HEIGHT);
+        setSize(WIN_WIDTH, WIN_HEIGHT);
         //窗口居中
         setLocationRelativeTo(null);
         //设置大小不可改变
@@ -81,6 +81,10 @@ public class GameFrame extends Frame implements Runnable {
     public void update(Graphics g1) {
         //画笔升级成 Graphics2D，才能设置渲染提示
         //解决双缓冲，得到图片的画笔
+        Graphics2D screen = (Graphics2D) g1;
+        // ★ 屏幕缩放也用最近邻，否则整体糊
+        screen.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
         Graphics2D g = (Graphics2D) bufferedImage.getGraphics();
         //图片缩放用「最近邻」：直接复制最近的像素，不造过渡色，像素画放大不发糊
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
@@ -105,7 +109,7 @@ public class GameFrame extends Frame implements Runnable {
                 break;
         }
         //使用系统画笔，将图片绘制到frame （我的理解是画成一张图片最后整体画上，刷
-        g1.drawImage(bufferedImage, 0, 0, this);//屏幕
+        screen.drawImage(bufferedImage, 0, 0, WIN_WIDTH, WIN_HEIGHT, this);//屏幕
     }
 
 
@@ -160,6 +164,8 @@ public class GameFrame extends Frame implements Runnable {
         drawEnemyTanks(g);
         //我方坦克
         myTank.draw(g);
+        //爆炸效果
+        drawExplodes(g);
         //碰撞检测
         bulletCollideTank();
 
@@ -341,6 +347,7 @@ public class GameFrame extends Frame implements Runnable {
             }
         }
     }
+
     //两种子弹逻辑，两部压成一步
     private void bulletCollideTank() {
         for (Tank enemyTank : enemyTanks) {
@@ -351,6 +358,14 @@ public class GameFrame extends Frame implements Runnable {
         }
 
 
+    }
+
+    //绘制坦克的爆炸效果
+    private void drawExplodes(Graphics g) {
+        for (EnemyTank enemyTank : enemyTanks) {
+            enemyTank.deawExlpodes(g);
+        }
+        myTank.deawExlpodes(g);
     }
 }
 

@@ -49,7 +49,7 @@ public class Bullet {
         if (!visible) return;//如果不可见了就不绘制
         logic();
         g.setColor(color);
-        //绘制坦克圆和炮弹圆是一样的
+
         g.fillOval(x - RADIUS, y - RADIUS, RADIUS << 1, RADIUS << 1);
     }
 

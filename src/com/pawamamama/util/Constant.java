@@ -15,10 +15,12 @@ import java.awt.*;
 public final class Constant {
     //------------------游戏窗口-------------------------
     public static final String GAME_TITLE = "坦克大战第二版:pawamamama";
-    //宽和高
+    //宽和高，游戏逻辑大小
     public static final int FRAME_WIDTH = 900;
     public static final int FRAME_HEIGHT = 700;
-
+    // 显示尺寸（窗口实际大小，只影响贴屏）
+    public static final int WIN_WIDTH = 1350;      // 900 × 1.5
+    public static final int WIN_HEIGHT = 1050;     // 700 × 1.5
 
     // ------------------游戏菜单-------------------------
     public static final int STATE_MENU = 0;   // 游戏主菜单
@@ -36,7 +38,7 @@ public final class Constant {
     };
     //字体
     public static final Font FONT = new Font("宋体", Font.BOLD, 24);
-    //线程休眠多长时间
+    //线程休眠多长时间,帧率
     public static final int REPAINT_INTERVAL = 30;
     //敌人最大数量
     public static final int ENEMY_MAX_COUNT = 10;

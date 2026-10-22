@@ -26,10 +26,10 @@ public class EnemyTank extends Tank {
     //静态代码块
     static {
         enemyImg = new Image[4];
-        enemyImg[0] = Toolkit.getDefaultToolkit().getImage("res/enemy_up.png");
-        enemyImg[1] = Toolkit.getDefaultToolkit().getImage("res/enemy_down.png");
-        enemyImg[2] = Toolkit.getDefaultToolkit().getImage("res/enemy_left.png");
-        enemyImg[3] = Toolkit.getDefaultToolkit().getImage("res/enemy_right.png");
+        enemyImg[0] = MyUtil.createImg("res/enemy_up.png");
+        enemyImg[1] = MyUtil.createImg("res/enemy_down.png");
+        enemyImg[2] = MyUtil.createImg("res/enemy_left.png");
+        enemyImg[3] = MyUtil.createImg("res/enemy_right.png");
     }
 
     public EnemyTank(int x, int y, int dir) {

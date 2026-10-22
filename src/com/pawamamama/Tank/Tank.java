@@ -1,5 +1,6 @@
 package com.pawamamama.Tank;
 
+import com.pawamamama.game.Explode;
 import com.pawamamama.game.GameFrame;
 import com.pawamamama.util.BulletsPool;
 import com.pawamamama.util.MyUtil;
@@ -22,7 +23,7 @@ import static com.pawamamama.util.Constant.*;
  * @date 2026/10/14
  */
 @SuppressWarnings({"all"})
-public abstract class  Tank {
+public abstract class Tank {
     //在这定义可以直接继承直接 类名.常量名 去使用
     //四个方向,上下左右
     public static final int DIR_UP = 0;
@@ -56,8 +57,10 @@ public abstract class  Tank {
     private Color color;
     //是否是敌人坦克
     private boolean isEnemy = false;
-    //TODO 炮弹泛型类
+    //炮弹泛型类
     private List<Bullet> bullets = new ArrayList();
+    //爆炸效果类
+    private List<Explode> explodes = new ArrayList();
     // 补偿量：图片整体右下移 1 像素，让炮管中心对齐到 (x, y)
     //protected 只有本类和子类，同包能用
     protected final int FIX = 1;
@@ -66,7 +69,7 @@ public abstract class  Tank {
         this.x = x;
         this.y = y;
         this.dir = dir;
-        //随机颜色       方法反反复复反反复复反反复复反反复复反反复复反反复复
+        //随机颜色
         color = MyUtil.getRandomColor();//工具类实现
     }
 
@@ -97,8 +100,8 @@ public abstract class  Tank {
      * 放大 2.5 倍后，屏幕上就偏了约 1.25 像素。
      * 不补这个偏移，炮管中心就不在逻辑坐标 (x, y) 上，
      * 而 fire() 是从 (x, y) 发射的，看起来子弹就歪到了炮管侧边。
-     *
-     *
+     * <p>
+     * <p>
      * 2026 10.19 8.42 构建为抽象方法,留给子类去实现
      */
     public abstract void drawImgTank(Graphics g);
@@ -219,7 +222,9 @@ public abstract class  Tank {
         bullets.add(bullet);
     }
 
-    /**坦克子弹碰撞
+    /**
+     * 坦克子弹碰撞
+     *
      * @param g
      */
     private void drawBullets(Graphics g) {
@@ -228,7 +233,7 @@ public abstract class  Tank {
         }
         //遍历所有子弹，将不可见的子弹移除，并还原回对象池
         for (int i = 0; i < bullets.size(); i++) {
-            Bullet bullet = bullets  .get(i);
+            Bullet bullet = bullets.get(i);
             if (!bullet.isVisible()) {
                 bullets.remove(i);//删除弹夹里的
                 BulletsPool.theReturn(bullet);//放回子弹池
@@ -239,21 +244,42 @@ public abstract class  Tank {
 
     /**
      * 子弹碰撞检查，必须是除了自己场上所有的子弹都得遍历
+     *
      * @param bullets
      */
     public void collideBullets(List<Bullet> bullets) {
         //遍历所有子弹，依次和当前坦克进行碰撞检测
         for (Bullet bullet : bullets) {
+            int bullet_x = bullet.getX();
+            int bullet_y = bullet.getY();
             //子弹和坦克碰上了，应该减少坦克血量，并把子弹归还到子弹池
-            if (MyUtil.isRectangleCollision(x,y,RADIUS,bullet.getX(),bullet.getY())) {
+
+            if (MyUtil.isRectangleCollision(x, y, RADIUS, bullet_x, bullet_y)) {
                 //1.子弹消失,设置不可见属性
                 bullet.setVisible(false);
                 //2.减少坦克血量
-                //3.爆炸效果
+                //2.5停止绘制坦克
+                //3.爆炸效果,受击效果应为三张图片，死亡放五张图片
+                //todo 根据敌人减完的血量，绘制两种效果,放哪个集合都是一样的，方便以后回收
+                if (false) {
+                    explodes.add(new Explode(bullet_x,bullet_y, 3));//扣血帧
+                } else {
+                    explodes.add(new Explode(x,y, 5));//死亡完整帧数
+                }
             }
 
         }
 
+    }
+
+    /**
+     * 绘制当前坦克身上的爆炸效果
+     * @param g
+     */
+    public void deawExlpodes(Graphics g) {
+        for (Explode explode : explodes) {
+            explode.drawBoom(g);
+        }
     }
 
     public int getX() {

@@ -56,5 +56,10 @@ public class MyUtil {
             return true;
         }
         return false;
+}
+//写一个加载图片的方法
+    //传入路径和第一个文件
+    public static Image createImg(String path) {
+        return Toolkit.getDefaultToolkit().getImage(path);
     }
 }
