@@ -30,7 +30,7 @@ public class Explode {
     private static final int MULTIPLE_OF_SCALE = (Tank.RADIUS * 2) / 16;
     //倍帧功能->原来是5帧 一张图片留存一帧，使用这个可以让一张图片显示在x 帧中，由slow控制
     //如果爆炸效果快就用这个调整到合适
-    private static final int SLOW = 3;
+    public static final int SLOW = 3;
     private static Image[] boomImg;
 
     //加载图片
@@ -119,4 +119,13 @@ public class Explode {
     public void setVisible(boolean visible) {
         isVisible = visible;
     }
+
+    public int getEndIndex() {
+        return endIndex;
+    }
+
+    public void setEndIndex(int endIndex) {
+        this.endIndex = endIndex;
+    }
+
 }

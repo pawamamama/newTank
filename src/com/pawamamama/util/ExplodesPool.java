@@ -17,9 +17,9 @@ import java.util.List;
 @SuppressWarnings({"all"})
 public class ExplodesPool {
     //池塘默认值
-    public static final int DEFAULT_POOL_SIZE = 200;
+    public static final int DEFAULT_POOL_SIZE = 10;
     //池塘最大容量
-    public static final int MAX_POOL_SIZE = 300;
+    public static final int MAX_POOL_SIZE = 30;
     //用保存所有炸弹的容器，敌人也用
     private static List<Explode> pool = new ArrayList<Explode>();
     private ExplodesPool() {
@@ -41,7 +41,7 @@ public class ExplodesPool {
         System.out.println("pool size: " + pool.size());
         Explode explode = null;
         if (pool.size() == 0) {//池塘没有炸弹了
-            explode = new Explode();
+            explode = new Explode();//就新new一个出来
         } else {//池塘中还有对象
             explode = pool.remove(0);//返回被删除的那个元素
         }

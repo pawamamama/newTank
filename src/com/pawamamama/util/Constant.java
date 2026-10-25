@@ -21,13 +21,13 @@ public final class Constant {
     // 显示尺寸（窗口实际大小，只影响贴屏）
     public static final int WIN_WIDTH = 1350;      // 900 × 1.5
     public static final int WIN_HEIGHT = 1050;     // 700 × 1.5
-
     // ------------------游戏菜单-------------------------
     public static final int STATE_MENU = 0;   // 游戏主菜单
     public static final int STATE_HELP = 1;   // 帮助界面
     public static final int STATE_ABOUT = 2;  // 关于界面
     public static final int STATE_RUN = 3;    // 游戏运行中
     public static final int STATE_OVER = 4;   // 游戏结束
+
     //使用String数组管理
     public static final String[] MENUS = {
             "开始游戏",

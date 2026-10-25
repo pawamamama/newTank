@@ -3,6 +3,7 @@ package com.pawamamama.Tank;
 import com.pawamamama.game.Explode;
 import com.pawamamama.game.GameFrame;
 import com.pawamamama.util.BulletsPool;
+import com.pawamamama.util.ExplodesPool;
 import com.pawamamama.util.MyUtil;
 
 import java.awt.*;
@@ -232,11 +233,11 @@ public abstract class Tank {
             bullet.draw(g);
         }
         //遍历所有子弹，将不可见的子弹移除，并还原回对象池
-        for (int i = 0; i < bullets.size(); i++) {
+        for (int i = bullets.size() - 1; i >= 0; i--) {
             Bullet bullet = bullets.get(i);
             if (!bullet.isVisible()) {
-                bullets.remove(i);//删除弹夹里的
-                BulletsPool.theReturn(bullet);//放回子弹池
+                bullets.remove(i);
+                BulletsPool.theReturn(bullet);
             }
         }
         // System.out.println("坦克子弹的数量" + bullets.size());
@@ -261,10 +262,22 @@ public abstract class Tank {
                 //2.5停止绘制坦克
                 //3.爆炸效果,受击效果应为三张图片，死亡放五张图片
                 //todo 根据敌人减完的血量，绘制两种效果,放哪个集合都是一样的，方便以后回收
-                if (false) {
-                    explodes.add(new Explode(bullet_x,bullet_y, 3));//扣血帧
+                //从炸弹池获取到对象
+                final Explode explode = ExplodesPool.get();
+                if (true) {
+                    explode.setVisible(true);
+                    explode.setIndex(0);
+                    explode.setX(bullet_x);
+                    explode.setY(bullet_y);
+                    explode.setEndIndex(3 * Explode.SLOW);//扣血三张图 * 播放帧率
+                    explodes.add(explode);//扣血帧
                 } else {
-                    explodes.add(new Explode(x,y, 5));//死亡完整帧数
+                    explode.setVisible(true);
+                    explode.setIndex(0);
+                    explode.setX(x);
+                    explode.setY(y);
+                    explode.setEndIndex(5* Explode.SLOW);//死亡完整图 * 播放帧率
+                    explodes.add(explode);
                 }
             }
 
@@ -273,12 +286,21 @@ public abstract class Tank {
     }
 
     /**
-     * 绘制当前坦克身上的爆炸效果
+     * 绘制当前坦克身上的爆炸效果绘制
+     *
      * @param g
      */
     public void deawExlpodes(Graphics g) {
         for (Explode explode : explodes) {
             explode.drawBoom(g);
+        }
+        //将不可见的爆炸效果删除
+        for (int i = explodes.size() - 1; i >= 0; i--) {
+            Explode explode = explodes.get(i);
+            if (!explode.isVisible()) {
+                explodes.remove(i);
+                ExplodesPool.theReturn(explode);
+            }
         }
     }
 
