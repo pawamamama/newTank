@@ -3,6 +3,7 @@ package com.pawamamama.Tank;
 import com.pawamamama.game.Explode;
 import com.pawamamama.game.GameFrame;
 import com.pawamamama.util.BulletsPool;
+import com.pawamamama.util.Constant;
 import com.pawamamama.util.ExplodesPool;
 import com.pawamamama.util.MyUtil;
 
@@ -42,6 +43,8 @@ public abstract class Tank {
     public static final int speed = DEFAULT_SPEED;//每次刷新跑4个像素
     //坦克初始生命
     public static final int DEFAULT_HP = 1000;
+    //姓名
+    private String name;
     //坐标
     private int x, y;
     //血量
@@ -72,6 +75,8 @@ public abstract class Tank {
         this.dir = dir;
         //随机颜色
         color = MyUtil.getRandomColor();//工具类实现
+        //名字
+        name = MyUtil.getRandomName();
     }
 
 
@@ -87,7 +92,14 @@ public abstract class Tank {
         drawImgTank(g);
         //画所有子弹
         drawBullets(g);
+        drawName(g);
     }
+    private void drawName(Graphics g) {
+        g.setColor(color);
+        g.setFont(SMALL_FONT);
+        g.drawString(name, x - RADIUS, y-40);
+    }
+
 
     /**
      * 使用图片的方式画坦克
@@ -383,5 +395,13 @@ public abstract class Tank {
 
     public void setEnemy(boolean enemy) {
         isEnemy = enemy;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 }

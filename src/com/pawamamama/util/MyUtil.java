@@ -38,6 +38,38 @@ public class MyUtil {
         return c;
     }
 
+    //------------------名字池-------------------------
+    //用数组管理，以后加/删名字不用改方法
+    public static final String[] NAMES = {
+            "铁锤",
+            "闪电",
+            "孤狼",
+            "雷霆",
+            "幽灵",
+            "烈焰",
+            "寒霜",
+            "铁壁",
+            "疾风",
+            "暗影",
+            "钢牙",
+            "赤焰",
+            "苍龙",
+            "猛虎",
+            "碎星",
+    };
+
+    /**
+     * 随机取一个名字
+     *
+     * <p>复用 {@link #getRandomNumber(int, int)}：
+     * 区间 [0, NAMES.length) 正好覆盖所有下标，不会越界。
+     *
+     * @return 名字池里的随机一个
+     */
+    public static final String getRandomName() {
+        return NAMES[getRandomNumber(0, NAMES.length)];
+    }
+
 
     /**
      * 矩形碰撞算法， 当一个物体（矩形）的中心点xy 于一个的xy，小于半径 说明发生碰撞

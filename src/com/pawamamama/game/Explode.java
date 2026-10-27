@@ -48,9 +48,8 @@ public class Explode {
     private int index;
     //终止下标,播到哪停止
     private int endIndex;
-    //设置可见性
+    //设置可见性 
     private boolean isVisible;
-
     public Explode() {
     }
 
@@ -70,9 +69,9 @@ public class Explode {
         }
         //当index 大于图片数量的时候设置为不可见
         if (Real_index >= EXPLODE_FRAME_COUNT || index >= endIndex) {
-            isVisible = false;
+            isVisible = false;            
             return;
-        }
+        }  
         //真正开始画爆炸效果
         drawScaling(g,Real_index);
         index++;//加播放帧数
@@ -80,7 +79,7 @@ public class Explode {
 
     //绘制缩放系数方法，因为图片和演示教程不一致，要使用坦克的缩放倍数
     private void drawScaling(Graphics g , int index) {
-        //先取缩放后的大小，但不是半径是全长
+        //先取缩放后的大小，但不是半径是全长     
         int w = RES_W[index] * MULTIPLE_OF_SCALE;
         int h = RES_H[index] * MULTIPLE_OF_SCALE;
         //开始绘制

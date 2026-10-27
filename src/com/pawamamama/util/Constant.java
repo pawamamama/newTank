@@ -38,6 +38,7 @@ public final class Constant {
     };
     //字体
     public static final Font FONT = new Font("宋体", Font.BOLD, 24);
+    public static final Font SMALL_FONT = new Font("宋体", Font.BOLD, 16);
     //线程休眠多长时间,帧率
     public static final int REPAINT_INTERVAL = 30;
     //敌人最大数量
