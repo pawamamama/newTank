@@ -43,6 +43,8 @@ public abstract class Tank {
     public static final int speed = DEFAULT_SPEED;//每次刷新跑4个像素
     //坦克初始生命
     public static final int DEFAULT_HP = 1000;
+    //坦克初始攻击力
+    public static final int DEFAULT_ATK = 100;
     //姓名
     private String name;
     //坐标
@@ -50,7 +52,7 @@ public abstract class Tank {
     //血量
     private int hp = DEFAULT_HP;
     //攻击力
-    private int atk;
+    private int atk = DEFAULT_ATK;
     //防御力
     private int def;
     //方向
@@ -68,6 +70,8 @@ public abstract class Tank {
     // 补偿量：图片整体右下移 1 像素，让炮管中心对齐到 (x, y)
     //protected 只有本类和子类，同包能用
     protected final int FIX = 1;
+    //血条内部类
+    protected final BloodBar bloodBar = new BloodBar();
 
     public Tank(int x, int y, int dir) {
         this.x = x;
@@ -92,12 +96,21 @@ public abstract class Tank {
         drawImgTank(g);
         //画所有子弹
         drawBullets(g);
+        //名字
         drawName(g);
+        //血条
+        bloodBar.draw(g);
     }
+
     private void drawName(Graphics g) {
         g.setColor(color);
         g.setFont(SMALL_FONT);
-        g.drawString(name, x - RADIUS, y-40);
+        // 血条上边：y - 30
+        // 文字基线：血条上边 - 5 = y - 35
+        //算文字数量宽度得到永远居中
+        FontMetrics fm = g.getFontMetrics();
+        int textW = fm.stringWidth(name);
+        g.drawString(name, x - textW / 2, y - 35);
     }
 
 
@@ -226,6 +239,7 @@ public abstract class Tank {
          * 坦克的atk 和 颜色
          */
         Bullet bullet = BulletsPool.get();
+        bullet.setAtk(atk);//设置子弹的伤害，坦克持有伤害能力，子弹负责传达
         bullet.setX(bulletX);
         bullet.setY(bulletY);
         bullet.setDir(dir);
@@ -271,12 +285,13 @@ public abstract class Tank {
                 //1.子弹消失,设置不可见属性
                 bullet.setVisible(false);
                 //2.减少坦克血量
+                hurt(bullet);//获取当前子弹，根据当前子弹效果去减伤
                 //2.5停止绘制坦克
                 //3.爆炸效果,受击效果应为三张图片，死亡放五张图片
                 //todo 根据敌人减完的血量，绘制两种效果,放哪个集合都是一样的，方便以后回收
                 //从炸弹池获取到对象
                 final Explode explode = ExplodesPool.get();
-                if (true) {
+                if (hp > 0) {//根据血量绘制
                     explode.setVisible(true);
                     explode.setIndex(0);
                     explode.setX(bullet_x);
@@ -288,13 +303,37 @@ public abstract class Tank {
                     explode.setIndex(0);
                     explode.setX(x);
                     explode.setY(y);
-                    explode.setEndIndex(5* Explode.SLOW);//死亡完整图 * 播放帧率
+                    explode.setEndIndex(5 * Explode.SLOW);//死亡完整图 * 播放帧率
                     explodes.add(explode);
                 }
             }
 
         }
 
+    }
+
+    //坦克受到伤害
+    private void hurt(Bullet bullet) {
+        //获取子弹的伤害
+        int atk = bullet.getAtk();
+        System.out.println("atk: " + atk);
+        hp -= atk;//减血量
+        if (hp <= 0) {
+            die();
+        }
+    }
+    //坦克死亡处理 todo
+
+    /**
+     * 判断死亡的是敌人还是玩家
+     */
+    private void die() {
+        if (isEnemy) {
+            //todo 敌人坦克被消灭了，归还对象池
+
+        }else {
+            //gameover todo
+        }
     }
 
     /**
@@ -314,6 +353,50 @@ public abstract class Tank {
                 ExplodesPool.theReturn(explode);
             }
         }
+    }
+
+    //内部类，来表示坦克的血条
+    class BloodBar {
+        //血条长度
+        public static final int BAR_LENGTH = 50;
+        public static final int BAR_HEIGHT = 5;
+
+        /**
+         * 画血条，三层叠加：
+         * 第1层 黄底 —— 满条，表示血量上限，给「掉血空出来的部分」一个底色
+         * 第2层 红条 —— 当前血量，按比例缩短，盖在黄底上
+         * 第3层 蓝框 —— 描边，防止血条和背景混在一起看不清
+         *
+         * <p>水平居中：血条宽 50，比坦克（40）宽，所以左边界要减掉半个血条宽，
+         * 写成 x - RADIUS 的话左边对齐了，右边会多出 10 像素，整体偏右。
+         * 用 x - BAR_LENGTH / 2 才是以坦克中心为基准左右对称。
+         * BAR_LENGTH 用偶数，除以 2 是精确值，不会出现半像素偏移。
+         *
+         * <p>垂直位置 y - RADIUS - BAR_HEIGHT * 2：
+         * y - RADIUS 先定位到坦克顶边，再往上让出 BAR_HEIGHT * 2 的距离。
+         * 其中血条本身高 BAR_HEIGHT，剩下 BAR_HEIGHT 是坦克头顶的空隙。
+         * 这样以后改 BAR_HEIGHT，血条和坦克之间的间距会自动跟着变，不用另外调数字。
+         *
+         * @param g
+         */
+        public void draw(Graphics g) {
+            //血条左上角，三层共用同一个位置
+            int barX = x - BAR_LENGTH / 2;                    //水平居中
+            int barY = y - RADIUS - BAR_HEIGHT * 2;           //坦克顶边往上让出间距
+
+            //黄底：永远画满 BAR_LENGTH，表示血量上限
+            g.setColor(Color.YELLOW);
+            g.fillRect(barX, barY, BAR_LENGTH, BAR_HEIGHT);
+            //红条：按剩余血量比例缩短，盖在黄底上
+            //必须「先乘后除」——写成 hp / DEFAULT_HP * BAR_LENGTH 的话，
+            //整数除法会先把 hp/DEFAULT_HP 算成 0，血条永远是空的
+            g.setColor(Color.RED);
+            g.fillRect(barX, barY, hp * BAR_LENGTH / DEFAULT_HP, BAR_HEIGHT);
+            //蓝框：描边，最后画，盖在两层填充上面
+            g.setColor(Color.WHITE);
+            g.drawRect(barX, barY, BAR_LENGTH, BAR_HEIGHT);
+        }
+
     }
 
     public int getX() {
