@@ -3,6 +3,7 @@ package com.pawamamama.game;
 import com.pawamamama.Tank.EnemyTank;
 import com.pawamamama.Tank.MyTank;
 import com.pawamamama.Tank.Tank;
+import com.pawamamama.util.EnemiesPool;
 
 import java.awt.*;
 import java.awt.event.KeyAdapter;
@@ -137,7 +138,7 @@ public class GameFrame extends Frame implements Runnable {
         for (int i = 0; i < MENUS.length; i++) {
             //选中时颜色变化
             if (menuIndex == i) {//选中时字体为红色
-                g.setColor(Color.RED);
+                g.setColor(Color.RED); 
             } else {
                 g.setColor(Color.WHITE);
             }
@@ -171,10 +172,28 @@ public class GameFrame extends Frame implements Runnable {
 
     }
 
-    //绘制所有敌人
+    //绘制所有敌人，把死亡的全部移除出集合，
     private void drawEnemyTanks(Graphics g) {
+        // 第一趟：只画活着的
         for (int i = 0; i < enemyTanks.size(); i++) {
-            enemyTanks.get(i).draw(g);
+            EnemyTank enemyTank = enemyTanks.get(i);
+            if (!enemyTank.isDie()) {
+                enemyTank.draw(g);
+            }
+        }
+
+        // 第二趟：倒序删，删完归还池子
+        // 为什么不能只判 isDie()：死了立刻删的话，这辆坦克就不在 enemyTanks 里了，
+        // drawExplodes() 遍历不到它，身上的 5 帧死亡爆炸就永远画不出来。
+        // 所以要等 isExplodeFinished()（身上的爆炸全播完）再删。
+        // 倒序删是因为 remove(i) 会让后面的元素前移，正序删会漏元素。
+        for (int i = enemyTanks.size() - 1; i >= 0; i--) {
+            EnemyTank enemyTank = enemyTanks.get(i);
+            if (enemyTank.isDie() && enemyTank.isExplodeFinished()) {
+                enemyTanks.remove(i);
+                //归还
+                EnemiesPool.theReturn(enemyTank);
+            } 
         }
     }
 
@@ -322,7 +341,7 @@ public class GameFrame extends Frame implements Runnable {
         new Thread(() -> {
             while (true) {
                 if (enemyTanks.size() < ENEMY_MAX_COUNT) {
-                    EnemyTank enemy = EnemyTank.createTank();
+                    EnemyTank enemy = EnemyTank.createTank();//创建一个坦克
                     enemyTanks.add(enemy);
                 }
                 try {//间隔生敌
@@ -355,6 +374,7 @@ public class GameFrame extends Frame implements Runnable {
             myTank.collideBullets(enemyTank.getBullets());
             // 玩家的子弹打敌人
             enemyTank.collideBullets(myTank.getBullets());
+
         }
 
 

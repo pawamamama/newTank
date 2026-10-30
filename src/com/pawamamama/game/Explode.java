@@ -48,15 +48,16 @@ public class Explode {
     private int index;
     //终止下标,播到哪停止
     private int endIndex;
-    //设置可见性 
+    //设置可见性
     private boolean isVisible;
     public Explode() {
+
     }
 
     public Explode(int x, int y, int endIndex) {
         this.x = x;
         this.y = y;
-        this.endIndex = endIndex * SLOW;
+        this.endIndex =endIndex;
         this.isVisible = true;//刚创建可见性肯定是true
     }
 

@@ -2,10 +2,7 @@ package com.pawamamama.Tank;
 
 import com.pawamamama.game.Explode;
 import com.pawamamama.game.GameFrame;
-import com.pawamamama.util.BulletsPool;
-import com.pawamamama.util.Constant;
-import com.pawamamama.util.ExplodesPool;
-import com.pawamamama.util.MyUtil;
+import com.pawamamama.util.*;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -73,10 +70,18 @@ public abstract class Tank {
     //血条内部类
     protected final BloodBar bloodBar = new BloodBar();
 
+    public Tank() {
+      initTank();
+    }
+
     public Tank(int x, int y, int dir) {
         this.x = x;
         this.y = y;
         this.dir = dir;
+       initTank();
+    }
+    //坦克初始化
+    private void initTank() {
         //随机颜色
         color = MyUtil.getRandomColor();//工具类实现
         //名字
@@ -275,12 +280,14 @@ public abstract class Tank {
      * @param bullets
      */
     public void collideBullets(List<Bullet> bullets) {
+        //已经死了就不再受击：防止尸体继续挨打导致爆炸无限叠加
+        if (isDie()) return;
+
         //遍历所有子弹，依次和当前坦克进行碰撞检测
         for (Bullet bullet : bullets) {
             int bullet_x = bullet.getX();
             int bullet_y = bullet.getY();
             //子弹和坦克碰上了，应该减少坦克血量，并把子弹归还到子弹池
-
             if (MyUtil.isRectangleCollision(x, y, RADIUS, bullet_x, bullet_y)) {
                 //1.子弹消失,设置不可见属性
                 bullet.setVisible(false);
@@ -322,18 +329,20 @@ public abstract class Tank {
             die();
         }
     }
-    //坦克死亡处理 todo
-
     /**
-     * 判断死亡的是敌人还是玩家
+     * 判断死亡的是敌人还是玩家，如果是玩家就处理
      */
     private void die() {
-        if (isEnemy) {
-            //todo 敌人坦克被消灭了，归还对象池
-
-        }else {
+        if (!isEnemy) {
             //gameover todo
         }
+        //这里不处理敌方坦克，敌人没有死的概念，只是归还到对象池
+    }
+    /**
+     * 坦克是否死亡
+     */
+    public boolean isDie() {
+        return  hp <= 0;
     }
 
     /**
@@ -398,6 +407,21 @@ public abstract class Tank {
         }
 
     }
+
+    /**
+     * 死亡帧是否播放完成
+     * <p>
+     * explodes 里存的是这辆坦克身上正在播的爆炸动画。
+     * deawExlpodes() 每帧画完后会把播完（!isVisible()）的爆炸移除并还池，
+     * 所以列表非空 = 至少还有一个没播完，列表空 = 全播完了。
+     * <p>
+     * 注意：这里判断的是「空」不是「null」，explodes 在字段声明时就 new 过了，不会 NPE。
+     *
+     * @return true 表示爆炸全部播完，可以安全删除这辆坦克
+     */
+     public boolean isExplodeFinished(){
+         return explodes.isEmpty();
+     }
 
     public int getX() {
         return x;
@@ -464,7 +488,7 @@ public abstract class Tank {
         this.color = color;
     }
 
-    public List getBullets() {
+    public List<Bullet> getBullets() {
         return bullets;
     }
 

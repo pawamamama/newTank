@@ -1,7 +1,10 @@
 package com.pawamamama.Tank;
 
+import com.pawamamama.game.Bullet;
 import com.pawamamama.game.GameFrame;
+import com.pawamamama.util.BulletsPool;
 import com.pawamamama.util.Constant;
+import com.pawamamama.util.EnemiesPool;
 import com.pawamamama.util.MyUtil;
 
 import java.awt.*;
@@ -32,11 +35,18 @@ public class EnemyTank extends Tank {
         enemyImg[3] = MyUtil.createImg("res/enemy_right.png");
     }
 
+    public EnemyTank() {
+        //隐式super
+        super();
+        aiStartTime = System.currentTimeMillis();
+    }
+
     public EnemyTank(int x, int y, int dir) {
         super(x, y, dir);
         //创建出来立马获取当前时间
         aiStartTime = System.currentTimeMillis();
     }
+
 
     @Override
     public void drawImgTank(Graphics g) {
@@ -50,16 +60,33 @@ public class EnemyTank extends Tank {
                 null);
     }
 
-    //创建一个敌人坦克
+    //重置计时
+    public void resetAiTime() {
+        aiStartTime = System.currentTimeMillis();
+    }
+
+    //创建一个敌人坦克,也承担重置池子里的对象值，比如hp=0的情况,要用的话通过这个重置
     public static EnemyTank createTank() {
-        //生成在左上角还是右上角，
+        //生成在左上角还是右上角
         int x = MyUtil.getRandomNumber(0, 2) == 0 ? RADIUS : FRAME_WIDTH - RADIUS;
         int y = GameFrame.titleBarHeight + RADIUS;//标题栏+半径
         int dir = DIR_DOWN;
-        EnemyTank enemy = new EnemyTank(x, y, dir);
+        EnemyTank enemy = EnemiesPool.get();
+        //重置生成时间，因为要根据生成时间算出坦克行为,为什么静态方法能用呢，因为是
+        enemy.resetAiTime();
+        enemy.setX(x);
+        enemy.setY(y);
+        enemy.setDir(DIR_DOWN);
         enemy.setEnemy(true);
-        //TODO
         enemy.setState(STATE_MOVE);
+        enemy.setHp(Tank.DEFAULT_HP);
+        //清空敌人的的弹夹，防止污染
+        //归还残留子弹（敌人死时可能有子弹没飞完）
+        for (Bullet b : enemy.getBullets()) {
+            BulletsPool.theReturn(b);
+        }
+        enemy.getBullets().clear();
+
         return enemy;
     }
 
