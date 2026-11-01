@@ -28,3 +28,6 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+### 本地生成脚本(审批后再决定是否入库) ###
+tools/
+.lidow/
