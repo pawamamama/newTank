@@ -4,6 +4,7 @@ import com.pawamamama.Tank.EnemyTank;
 import com.pawamamama.Tank.MyTank;
 import com.pawamamama.Tank.Tank;
 import com.pawamamama.util.EnemiesPool;
+import com.pawamamama.util.MyUtil;
 
 import java.awt.*;
 import java.awt.event.KeyAdapter;
@@ -28,10 +29,12 @@ import static com.pawamamama.util.Constant.*;
  */
 @SuppressWarnings({"all"})
 public class GameFrame extends Frame implements Runnable {
+    //等用到的时候加载
+    private Image imgGameOVer = null;
     //定义一张和屏幕的大小一致的图片
     private BufferedImage bufferedImage = new BufferedImage(FRAME_WIDTH, FRAME_HEIGHT, BufferedImage.TYPE_4BYTE_ABGR);
     //游戏状态
-    public static int gameState;
+    private static int gameState;
     //菜单指向
     private int menuIndex;
     //标题栏的高度
@@ -138,7 +141,7 @@ public class GameFrame extends Frame implements Runnable {
         for (int i = 0; i < MENUS.length; i++) {
             //选中时颜色变化
             if (menuIndex == i) {//选中时字体为红色
-                g.setColor(Color.RED); 
+                g.setColor(Color.RED);
             } else {
                 g.setColor(Color.WHITE);
             }
@@ -193,11 +196,45 @@ public class GameFrame extends Frame implements Runnable {
                 enemyTanks.remove(i);
                 //归还
                 EnemiesPool.theReturn(enemyTank);
-            } 
+            }
         }
     }
 
+    /**
+     * 绘制游戏结束的方法
+     *
+     * @param g
+     */
     private void drawOver(Graphics g) {
+        if (imgGameOVer == null) {//保证只加载一次
+            imgGameOVer = MyUtil.createImg("res/gameover.png");
+        }
+        //放大后的显示尺寸(原图 416x416,想改大小只改这两个值)
+        final int DRAW_W = 600;
+        final int DRAW_H = 600;
+        //居中:先算出画布宽高和图片宽高的差,再 >> 1 右移一位,等效除以 2,
+        //得到图片左上角坐标,图片就落在画布正中间
+        int x = FRAME_WIDTH - DRAW_W >> 1;
+        int y = FRAME_HEIGHT - DRAW_H >> 1;
+        //先把整个画布填成和 gameover.png 背景一样的灰(#636363 = RGB 99,99,99),
+        //这样图片的灰底和画布连成一片,不会出现中间一块灰、四周发白的突兀效果
+        g.setColor(new Color(99, 99, 99));
+        g.fillRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+        //五参数 drawImage:把原图拉伸到 DRAW_W x DRAW_H 再画到 (x, y)
+        //update() 里已经设置了「最近邻」渲染提示,所以放大后像素边缘锐利,不会发糊
+        //注意:这里画在 bufferedImage(900x700)上,必须用 FRAME_* 计算;
+        //如果用 WIN_*(1350x1050)算,最后整体放大 1.5 倍画到屏幕时会偏右下
+        g.drawImage(imgGameOVer, x, y, DRAW_W, DRAW_H, this);
+        //提示信息:两行都画在图片下方的灰色空白区(图片约 y=470 以下没有内容)
+        //FontMetrics 拿当前字体(FONT,24号宋体)每行文字的实际像素宽,
+        //用 (画布宽 - 文字宽) >> 1 水平居中,比手写固定宽度准,换字体也不会跑偏
+        //drawString 的 y 参数是文字的「基线」(字底部),不是字顶
+        g.setColor(Color.WHITE);
+        FontMetrics fm = g.getFontMetrics();
+        final int TIP_Y = 520;      //第一行提示的基线
+        final int TIP_DIS = 50;     //行间距,和菜单的 DIS 保持一致
+        g.drawString(OVER_STR0, FRAME_WIDTH - fm.stringWidth(OVER_STR0) >> 1, TIP_Y);
+        g.drawString(OVER_STR1, FRAME_WIDTH - fm.stringWidth(OVER_STR1) >> 1, TIP_Y + TIP_DIS);
     }
 
     // 初始化事件监听，按键处理
@@ -238,7 +275,6 @@ public class GameFrame extends Frame implements Runnable {
                 }
             }
 
-            //按键被松开的时候
             @Override
             public void keyReleased(KeyEvent e) {
                 int keyCode = e.getKeyCode();
@@ -251,6 +287,30 @@ public class GameFrame extends Frame implements Runnable {
     }
 
     private void keyEventOver(int keyCode) {
+        if (keyCode == KeyEvent.VK_ESCAPE) {
+            System.exit(0);
+        } else if (keyCode == KeyEvent.VK_ENTER) {
+            //重置游戏状态
+            restGame();
+            //newGame敌人生产线程
+            gameState = STATE_MENU;//回到菜单
+        }
+    }
+
+    //重置游戏状态
+    private void restGame() {
+        //菜单指向
+        menuIndex = 0;
+        //先让自己的子弹还回对象池
+        myTank.bulletsReturn();
+        //销毁自己的坦克
+        myTank = null;
+        //清空敌人资源
+        for (EnemyTank enemyTank : enemyTanks) {
+            enemyTank.bulletsReturn();
+        }
+        //清空敌人
+        enemyTanks.clear();
     }
 
     //按键松开，游戏中的处理方法
@@ -349,6 +409,11 @@ public class GameFrame extends Frame implements Runnable {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+                //只有在run状态才生产敌人
+                if (gameState != STATE_RUN) {
+                    //退出这个线程
+                    break;
+                }
             }
         }).start();
     }
@@ -386,6 +451,15 @@ public class GameFrame extends Frame implements Runnable {
             enemyTank.deawExlpodes(g);
         }
         myTank.deawExlpodes(g);
+    }
+
+    //获得游戏状态和修改游戏状态
+    public static int getGameState() {
+        return gameState;
+    }
+
+    public static void setGameState(int gameState) {
+        GameFrame.gameState = gameState;
     }
 }
 

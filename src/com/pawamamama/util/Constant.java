@@ -36,6 +36,8 @@ public final class Constant {
             "游戏关于",
             "退出游戏",
     };
+    public static final String  OVER_STR0 = "按esc键退出游戏";
+    public static final String  OVER_STR1 = "ENTER键回主菜单";
     //字体
     public static final Font FONT = new Font("宋体", Font.BOLD, 24);
     public static final Font SMALL_FONT = new Font("宋体", Font.BOLD, 16);

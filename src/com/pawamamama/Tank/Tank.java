@@ -275,6 +275,15 @@ public abstract class Tank {
     }
 
     /**
+     * 坦克销毁时处理坦克所有的子弹
+     */
+    public void bulletsReturn(){
+        for (Bullet bullet : bullets) {
+            BulletsPool.theReturn(bullet);
+        }
+    }
+
+    /**
      * 子弹碰撞检查，必须是除了自己场上所有的子弹都得遍历
      *
      * @param bullets
@@ -335,6 +344,8 @@ public abstract class Tank {
     private void die() {
         if (!isEnemy) {
             //gameover todo
+            //把游戏状态切换成gmaeover
+            GameFrame.setGameState(STATE_OVER);
         }
         //这里不处理敌方坦克，敌人没有死的概念，只是归还到对象池
     }
