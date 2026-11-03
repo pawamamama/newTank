@@ -3,6 +3,7 @@ package com.pawamamama.game;
 import com.pawamamama.Tank.EnemyTank;
 import com.pawamamama.Tank.MyTank;
 import com.pawamamama.Tank.Tank;
+import com.pawamamama.map.GameMap;
 import com.pawamamama.util.EnemiesPool;
 import com.pawamamama.util.MyUtil;
 
@@ -43,6 +44,8 @@ public class GameFrame extends Frame implements Runnable {
     private Tank myTank;
     //敌方坦克
     private List<EnemyTank> enemyTanks = new ArrayList<EnemyTank>();
+    //定义地图相关的内容
+    private GameMap  gameMap;
 
     //初始化
     public GameFrame() throws HeadlessException {
@@ -164,6 +167,8 @@ public class GameFrame extends Frame implements Runnable {
         g.setColor(Color.BLACK);
         //填充矩形
         g.fillRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+        //绘制地图
+        gameMap.draw(g);
         //绘制敌人坦克
         drawEnemyTanks(g);
         //我方坦克
@@ -311,6 +316,8 @@ public class GameFrame extends Frame implements Runnable {
         }
         //清空敌人
         enemyTanks.clear();
+        //清空地图资源
+        gameMap = null;
     }
 
     //按键松开，游戏中的处理方法
@@ -394,6 +401,8 @@ public class GameFrame extends Frame implements Runnable {
      * 开始新游戏的方法
      */
     private void newGame() {
+        //地图初始化
+        gameMap = new GameMap();
         gameState = STATE_RUN;
         //创建坦克对象
         myTank = new MyTank(100, 100, Tank.DIR_DOWN);
