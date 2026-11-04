@@ -18,9 +18,12 @@ public final class Constant {
     //宽和高，游戏逻辑大小
     public static final int FRAME_WIDTH = 900;
     public static final int FRAME_HEIGHT = 700;
-    // 显示尺寸（窗口实际大小，只影响贴屏）
-    public static final int WIN_WIDTH = 1350;      // 900 × 1.5
-    public static final int WIN_HEIGHT = 1050;     // 700 × 1.5
+    //窗口缩放倍数
+    public static final double MULTIPLE = 1.5;
+    // 显示尺寸（窗口实际大小，只影响贴屏）取缩放后的大小
+    public static final int WIN_WIDTH = (int) (FRAME_WIDTH * MULTIPLE);
+    public static final int WIN_HEIGHT = (int) (FRAME_HEIGHT * MULTIPLE);
+
     // ------------------游戏菜单-------------------------
     public static final int STATE_MENU = 0;   // 游戏主菜单
     public static final int STATE_HELP = 1;   // 帮助界面

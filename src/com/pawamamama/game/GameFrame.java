@@ -68,8 +68,8 @@ public class GameFrame extends Frame implements Runnable {
         setResizable(false);
         //设置窗口可见
         setVisible(true);
-        //求标题栏的高度
-        titleBarHeight = getInsets().top;
+        //求标题栏的高度,取缩放后的实际大小
+        titleBarHeight = (int) (getInsets().top / MULTIPLE);
 
 
     }
