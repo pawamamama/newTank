@@ -55,13 +55,13 @@ public class Bullet {
 
     //子弹逻辑
     private void logic() {
-        move();
+            move();
     }
 
     private void move() {
         switch (dir) {
             case Tank.DIR_UP:
-                y -= speed;
+              y -= speed;
                 if (y <= GameFrame.titleBarHeight) {
                     visible = false;
                 }
@@ -73,13 +73,13 @@ public class Bullet {
                 }
                 break;
             case Tank.DIR_LEFT:
-                x -= speed;
+              x -= speed;
                 if (x <= 0) {
                     visible = false;
                 }
                 break;
             case Tank.DIR_RIGHT:
-                x += speed;
+                 x += speed;
                 if (x >= FRAME_WIDTH) {
                     visible = false;
                 }

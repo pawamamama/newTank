@@ -2,6 +2,8 @@ package com.pawamamama.Tank;
 
 import com.pawamamama.game.Explode;
 import com.pawamamama.game.GameFrame;
+import com.pawamamama.map.GameMap;
+import com.pawamamama.map.MapTile;
 import com.pawamamama.util.*;
 
 import java.awt.*;
@@ -412,8 +414,7 @@ public abstract class Tank {
             //整数除法会先把 hp/DEFAULT_HP 算成 0，血条永远是空的
             g.setColor(Color.RED);
             g.fillRect(barX, barY, hp * BAR_LENGTH / DEFAULT_HP, BAR_HEIGHT);
-            //蓝框：描边，最后画，盖在两层填充上面
-            g.setColor(Color.WHITE);
+              g.setColor(Color.WHITE);
             g.drawRect(barX, barY, BAR_LENGTH, BAR_HEIGHT);
         }
 
@@ -433,6 +434,7 @@ public abstract class Tank {
      public boolean isExplodeFinished(){
          return explodes.isEmpty();
      }
+
 
     public int getX() {
         return x;

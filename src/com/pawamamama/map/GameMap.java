@@ -43,7 +43,7 @@ public class GameMap {
      * 先随机生成,
      */
     private void initMap() {
-        final int COUNT = 19 * 14;
+        final int COUNT = 19;
 
         for (int i = 0; i < COUNT; i++) {
             //随机得到一个地图块
@@ -63,6 +63,10 @@ public class GameMap {
         for (MapTile tile : tiles) {
             tile.draw(g);
         }
+    }
+
+    public List<MapTile> getTiles() {
+        return tiles;
     }
 
 }

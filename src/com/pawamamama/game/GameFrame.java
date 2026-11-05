@@ -4,6 +4,7 @@ import com.pawamamama.Tank.EnemyTank;
 import com.pawamamama.Tank.MyTank;
 import com.pawamamama.Tank.Tank;
 import com.pawamamama.map.GameMap;
+import com.pawamamama.map.MapTile;
 import com.pawamamama.util.EnemiesPool;
 import com.pawamamama.util.MyUtil;
 
@@ -45,7 +46,7 @@ public class GameFrame extends Frame implements Runnable {
     //敌方坦克
     private List<EnemyTank> enemyTanks = new ArrayList<EnemyTank>();
     //定义地图相关的内容
-    private GameMap  gameMap;
+    private GameMap gameMap;
 
     //初始化
     public GameFrame() throws HeadlessException {
@@ -177,6 +178,8 @@ public class GameFrame extends Frame implements Runnable {
         drawExplodes(g);
         //碰撞检测
         bulletCollideTank();
+        //坦克子弹碰撞地图块  
+        bulletCollideMapTile();
 
     }
 
@@ -450,8 +453,25 @@ public class GameFrame extends Frame implements Runnable {
             enemyTank.collideBullets(myTank.getBullets());
 
         }
+    }
+
+    //所有子弹和地图块碰撞
+    private void bulletCollideMapTile() {
+        //自己的坦克和地图块的碰撞
+        final List<MapTile> tiles = gameMap.getTiles();//获取所有地图
+        for (MapTile tile : tiles) {
+            //所有敌人的子弹和地图块的
+            if (tile.isCollideBullet(myTank.getBullets())) {
+                //todo 子弹销毁 ，扣地图块血量或者直接销毁，后续判断类型（加强墙，普通墙）
 
 
+            }
+            for (EnemyTank enemyTank : enemyTanks) {
+                if (tile.isCollideBullet(enemyTank.getBullets())) {
+                    //todo 子弹销毁 ，扣地图块血量或者直接销毁，后续判断类型（加强墙，普通墙）
+                }
+            }
+        }
     }
 
     //绘制坦克的爆炸效果
@@ -470,5 +490,10 @@ public class GameFrame extends Frame implements Runnable {
     public static void setGameState(int gameState) {
         GameFrame.gameState = gameState;
     }
+
+    public GameMap getGameMap() {
+        return gameMap;
+    }
+
 }
 

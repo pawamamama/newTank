@@ -1,5 +1,8 @@
 package com.pawamamama.util;
 
+
+import com.pawamamama.Tank.Tank;
+
 import java.awt.*;
 
 /**
@@ -88,8 +91,47 @@ public class MyUtil {
             return true;
         }
         return false;
-}
-//写一个加载图片的方法
+    }
+
+    /**wept collision（扫掠碰撞），意思是「不要只检查子弹这一帧落在哪，要检查它这一帧走过的整条线段有没有撞到砖
+     * 一帧走过的像素，就是速度
+     *
+     * @param rectX  正方形坐标g
+     * @param rectY  正方形坐标
+     * @param radius 正方形边长的一半
+     * @param pointX 点坐标
+     * @param pointY 点坐标
+     * @param speed  子弹速度
+     * @return
+     */
+    public static final boolean sweptCollision(int rectX, int rectY, int rectRadius, int pointX, int pointY,int dir, int speed) {
+        //记录原始x，y
+        int oldX = pointX;
+        int oldY = pointY;
+        for (int step = 0; step < speed; step++) {//根据一次帧数位移speed 每次判断一帧内移动的帧数
+            switch (dir) {//按照方向选择加的像素
+                case Tank.DIR_UP:
+                   oldY--;
+                    break;
+                case Tank.DIR_DOWN:
+                    oldY++;
+                    break;
+                case Tank.DIR_LEFT:
+                   oldX--;
+                    break;
+                case Tank.DIR_RIGHT:
+                   oldX++;
+                    break;
+            }
+            //每位移碰到了
+            if (isRectangleCollision(rectX, rectY, rectRadius, oldX, oldY)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    //写一个加载图片的方法
     //传入路径和第一个文件
     public static Image createImg(String path) {
         return Toolkit.getDefaultToolkit().getImage(path);
