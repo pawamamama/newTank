@@ -73,15 +73,16 @@ public abstract class Tank {
     protected final BloodBar bloodBar = new BloodBar();
 
     public Tank() {
-      initTank();
+        initTank();
     }
 
     public Tank(int x, int y, int dir) {
         this.x = x;
         this.y = y;
         this.dir = dir;
-       initTank();
+        initTank();
     }
+
     //坦克初始化
     private void initTank() {
         //随机颜色
@@ -279,7 +280,7 @@ public abstract class Tank {
     /**
      * 坦克销毁时处理坦克所有的子弹
      */
-    public void bulletsReturn(){
+    public void bulletsReturn() {
         for (Bullet bullet : bullets) {
             BulletsPool.theReturn(bullet);
         }
@@ -304,26 +305,16 @@ public abstract class Tank {
                 bullet.setVisible(false);
                 //2.减少坦克血量
                 hurt(bullet);//获取当前子弹，根据当前子弹效果去减伤
-                //2.5停止绘制坦克
+                //2.5停止绘制坦克,由绘制坦克类由hp发现
                 //3.爆炸效果,受击效果应为三张图片，死亡放五张图片
-                //todo 根据敌人减完的血量，绘制两种效果,放哪个集合都是一样的，方便以后回收
-                //从炸弹池获取到对象
-                final Explode explode = ExplodesPool.get();
-                if (hp > 0) {//根据血量绘制
-                    explode.setVisible(true);
-                    explode.setIndex(0);
-                    explode.setX(bullet_x);
-                    explode.setY(bullet_y);
-                    explode.setEndIndex(3 * Explode.SLOW);//扣血三张图 * 播放帧率
-                    explodes.add(explode);//扣血帧
+                //todo 根据敌人减完的血量，绘制两种效果,放哪个集合都是一样的，反正会洗掉状态
+                //升级成工具类方法，这里按照逻辑使用
+                if (hp > 0) {
+                    explodes.add(MyUtil.addExplode(3, bullet_x, bullet_y));
                 } else {
-                    explode.setVisible(true);
-                    explode.setIndex(0);
-                    explode.setX(x);
-                    explode.setY(y);
-                    explode.setEndIndex(5 * Explode.SLOW);//死亡完整图 * 播放帧率
-                    explodes.add(explode);
+                    explodes.add(MyUtil.addExplode(Explode.EXPLODE_FRAME_COUNT, x, y));
                 }
+
             }
 
         }
@@ -340,6 +331,7 @@ public abstract class Tank {
             die();
         }
     }
+
     /**
      * 判断死亡的是敌人还是玩家，如果是玩家就处理
      */
@@ -351,11 +343,12 @@ public abstract class Tank {
         }
         //这里不处理敌方坦克，敌人没有死的概念，只是归还到对象池
     }
+
     /**
      * 坦克是否死亡
      */
     public boolean isDie() {
-        return  hp <= 0;
+        return hp <= 0;
     }
 
     /**
@@ -373,6 +366,19 @@ public abstract class Tank {
             if (!explode.isVisible()) {
                 explodes.remove(i);
                 ExplodesPool.theReturn(explode);
+            }
+        }
+    }
+
+
+                //todo设置地图块销毁
+
+                //坦克的子弹和地图所有的块碰撞,提取到坦克做爆炸效果
+                public void bulletCollideMapTiles(List<MapTile> tiles) {
+                    for (MapTile tile : tiles) {
+                        if (tile.isCollideBullet(bullets)) {
+
+                            //添加爆炸效果
             }
         }
     }
@@ -414,7 +420,7 @@ public abstract class Tank {
             //整数除法会先把 hp/DEFAULT_HP 算成 0，血条永远是空的
             g.setColor(Color.RED);
             g.fillRect(barX, barY, hp * BAR_LENGTH / DEFAULT_HP, BAR_HEIGHT);
-              g.setColor(Color.WHITE);
+            g.setColor(Color.WHITE);
             g.drawRect(barX, barY, BAR_LENGTH, BAR_HEIGHT);
         }
 
@@ -431,9 +437,9 @@ public abstract class Tank {
      *
      * @return true 表示爆炸全部播完，可以安全删除这辆坦克
      */
-     public boolean isExplodeFinished(){
-         return explodes.isEmpty();
-     }
+    public boolean isExplodeFinished() {
+        return explodes.isEmpty();
+    }
 
 
     public int getX() {

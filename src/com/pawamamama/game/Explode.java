@@ -21,7 +21,7 @@ import java.awt.*;
  */
 @SuppressWarnings({"all"})
 public class Explode {
-    //图片数量
+    //图片完整数量
     public static final int EXPLODE_FRAME_COUNT = 5;
     //图片原始宽高
     private static final int[] RES_W = {11, 15, 16, 28, 34};

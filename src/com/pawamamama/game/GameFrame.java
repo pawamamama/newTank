@@ -462,7 +462,7 @@ public class GameFrame extends Frame implements Runnable {
         for (MapTile tile : tiles) {
             //所有敌人的子弹和地图块的
             if (tile.isCollideBullet(myTank.getBullets())) {
-                //todo 子弹销毁 ，扣地图块血量或者直接销毁，后续判断类型（加强墙，普通墙）
+                //todo ，扣地图块血量或者直接销毁，后续判断类型（加强墙，普通墙）
 
 
             }
