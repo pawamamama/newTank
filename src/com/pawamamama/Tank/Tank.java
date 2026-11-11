@@ -371,14 +371,14 @@ public abstract class Tank {
     }
 
 
-                //todo设置地图块销毁
-
-                //坦克的子弹和地图所有的块碰撞,提取到坦克做爆炸效果
-                public void bulletCollideMapTiles(List<MapTile> tiles) {
-                    for (MapTile tile : tiles) {
-                        if (tile.isCollideBullet(bullets)) {
-
-                            //添加爆炸效果
+    //todo设置地图块销毁
+    //坦克的子弹和地图所有的块碰撞,提取到坦克做爆炸效果
+    public void bulletCollideMapTiles(List<MapTile> tiles) {
+        for (MapTile tile : tiles) {
+            if (tile.isCollideBullet(bullets)) {
+                //添加爆炸效果,先弄完整爆炸效果
+                explodes.add(MyUtil.addExplode(Explode.EXPLODE_FRAME_COUNT, tile.getX()+tile.RADIUS, tile.getY()+tile.RADIUS));
+                //设置地图块销毁
             }
         }
     }

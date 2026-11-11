@@ -457,20 +457,13 @@ public class GameFrame extends Frame implements Runnable {
 
     //所有子弹和地图块碰撞
     private void bulletCollideMapTile() {
+        final List<MapTile> tiles = gameMap.getTiles();
         //自己的坦克和地图块的碰撞
-        final List<MapTile> tiles = gameMap.getTiles();//获取所有地图
-        for (MapTile tile : tiles) {
-            //所有敌人的子弹和地图块的
-            if (tile.isCollideBullet(myTank.getBullets())) {
-                //todo ，扣地图块血量或者直接销毁，后续判断类型（加强墙，普通墙）
+        myTank.bulletCollideMapTiles(tiles);
+        //敌人坦克子弹和地图块的碰撞
+        for (EnemyTank enemyTank : enemyTanks) {
+            enemyTank.bulletCollideMapTiles(tiles);
 
-
-            }
-            for (EnemyTank enemyTank : enemyTanks) {
-                if (tile.isCollideBullet(enemyTank.getBullets())) {
-                    //todo 子弹销毁 ，扣地图块血量或者直接销毁，后续判断类型（加强墙，普通墙）
-                }
-            }
         }
     }
 
