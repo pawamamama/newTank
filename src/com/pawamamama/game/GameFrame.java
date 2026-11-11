@@ -463,11 +463,12 @@ public class GameFrame extends Frame implements Runnable {
         //敌人坦克子弹和地图块的碰撞
         for (EnemyTank enemyTank : enemyTanks) {
             enemyTank.bulletCollideMapTiles(tiles);
-
         }
+        gameMap.clearDestoryTile();//清理所有被销毁的地图块
     }
 
-    //绘制坦克的爆炸效果
+
+    //绘制坦克的爆炸效果（包含地图块的爆炸，因为是子弹引起的爆炸，坦克承担这个行为）
     private void drawExplodes(Graphics g) {
         for (EnemyTank enemyTank : enemyTanks) {
             enemyTank.deawExlpodes(g);

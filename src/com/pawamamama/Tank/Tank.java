@@ -379,6 +379,8 @@ public abstract class Tank {
                 //添加爆炸效果,先弄完整爆炸效果
                 explodes.add(MyUtil.addExplode(Explode.EXPLODE_FRAME_COUNT, tile.getX()+tile.RADIUS, tile.getY()+tile.RADIUS));
                 //设置地图块销毁
+                tile.setVisible(false);//设置为不可见
+               
             }
         }
     }

@@ -21,7 +21,6 @@ public class MapTile {
     private static Image tileImg;
     public static int RADIUS = Tank.RADIUS;
     public static int tileW = RADIUS << 1;
-
     static {
         tileImg = MyUtil.createImg("res/brick.png");
       /*  if (tileW <= 0) {//大小
@@ -30,7 +29,7 @@ public class MapTile {
     }
 
     private int x, y;
-
+    private boolean isVisible = true;//可见性
     /**
      * 无参构造：给对象池预创建对象用，坐标由池的使用方再设置
      */
@@ -44,6 +43,8 @@ public class MapTile {
 
     //绘制块
     public void draw(Graphics g) {
+        if (!isVisible)//不可键直接不绘制了
+            return;
         if (tileW <= 0) {//大小
             tileW = tileImg.getWidth(null);
         }
@@ -58,6 +59,8 @@ public class MapTile {
      * @return
      */
     public boolean isCollideBullet(List<Bullet> bullets) {
+        if (!isVisible)//不可见直接不判断了
+            return false;
         //子弹坐标
         for (Bullet bullet : bullets) {
             int bullet_x = bullet.getX();
@@ -89,5 +92,13 @@ public class MapTile {
 
     public int getY() {
         return y;
+    }
+
+    public boolean isVisible() {
+        return isVisible;
+    }
+
+    public void setVisible(boolean visible) {
+        isVisible = visible;
     }
 }

@@ -1,8 +1,10 @@
 package com.pawamamama.map;
 
 import com.pawamamama.Tank.Tank;
+import com.pawamamama.game.Explode;
 import com.pawamamama.game.GameFrame;
 import com.pawamamama.util.Constant;
+import com.pawamamama.util.ExplodesPool;
 import com.pawamamama.util.MyUtil;
 import com.pawamamama.util.TilesPool;
 
@@ -65,6 +67,18 @@ public class GameMap {
         }
     }
 
+    /**
+     * 将所有不可见的地图块从容器中移除
+     */
+    public void clearDestoryTile() {
+        for (int i = getTiles().size() - 1; i >= 0; i--) {
+            MapTile tile = getTiles().get(i);
+            if (!tile.isVisible()) {
+                tiles.remove(i);
+                TilesPool.theReturn(tile);
+            }
+        }
+    }
     public List<MapTile> getTiles() {
         return tiles;
     }
