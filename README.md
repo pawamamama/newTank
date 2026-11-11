@@ -13,8 +13,10 @@
      → 开火 → 对象池回收子弹 → 抽象 Tank 类 → 玩家/敌人拆分 → 敌人定时生成
      → 子弹碰撞检测 → 爆炸效果 → 扣血系统 → 血条/名字 → 敌人对象池
      → 敌人死亡完整处理（防鞭尸 + 等爆炸播完 + 归还池子）
+     → gameover（玩家死亡 → STATE_OVER → 回菜单）
+     → 地图层（19×14 格居中）→ 砖块对象池 → 子弹扫掠碰撞砖块 → 砖块销毁并回收
                                                     ▲ 你在这
-下一步：gameover（玩家死亡 → STATE_OVER → 回菜单重开）
+下一步：坦克与砖块的移动碰撞（现在坦克能直接穿过砖块）、地图布局改为手工关卡数据
 ```
 
 ---
@@ -33,7 +35,7 @@
 | 渲染方式 | 双缓冲（`BufferedImage` + 整张贴屏放大） |
 | 缩放算法 | 最近邻（像素画专用），**缓冲区和屏幕两层都要设** |
 | 坦克尺寸 | 逻辑半径 20 → 屏幕 40 × 40 |
-| 素材尺寸 | 坦克 16 × 16 原生；爆炸帧 11×11 ~ 34×31，缩放倍数 2 |
+| 素材尺寸 | 坦克 16 × 16 原生；爆炸帧 11×11 ~ 34×31，缩放倍数 2；砖块 40 × 40 原生 |
 | 子弹 | 代码画圆（半径 4），素材里没有子弹 |
 | 坦克生命 | `DEFAULT_HP = 1000` |
 | 坦克攻击力 | `DEFAULT_ATK = 100` → **10 发打死** |
@@ -42,12 +44,16 @@
 | 子弹池 | 初始 200 个，上限 300 个 |
 | 炸弹池 | 初始 10 个，上限 30 个 |
 | 敌人池 | 初始 10 个，上限 15 个 |
+| 砖块池 | 初始 200 个，上限 400 个 |
+| 地图 | 19 列 × 14 行，每格 40 × 40，整图 760 × 560，居中于 (70, 80) |
+| 地图砖块 | 每局随机生成 19 块（`brick.png` 40 × 40），可被子弹打碎并回收 |
+| 砖块碰撞 | 子弹扫掠判定（按速度逐像素检查本帧路径），坦克暂不与砖块碰撞 |
 | 爆炸帧率 | `SLOW = 3`，每张图停留 3 次刷新（90ms） |
 | 敌人上限 | 10 辆（`ENEMY_MAX_COUNT`） |
 | 敌人生成间隔 | 5000 ms（`ENEMY_BORN__INTERVAL`） |
 | 敌人 AI 间隔 | 3000 ms 决策一次（`ENEMY_AI_INTERVAL`） |
 | 敌人开火概率 | 3%（`ENEMY_FIRE_PERCENT`） |
-| 核心设计 | 模板方法（抽象 `Tank`）、对象池×3、双缓冲、静态工厂、分帧动画 |
+| 核心设计 | 模板方法（抽象 `Tank`）、对象池×4、双缓冲、静态工厂、分帧动画、扫掠碰撞 |
 
 ---
 
@@ -57,32 +63,48 @@
 
 ```
 newTank/
-├── res/                                  图片素材（18 张 PNG）
+├── res/                                  图片素材（16 张 PNG）
 │   ├── player_up/down/left/right.png     我方坦克，四方向，16×16
 │   ├── enemy_up/down/left/right.png      敌方坦克，四方向，16×16
-│   └── boom_0~4.png                      爆炸序列帧，11×11 ~ 34×31（已接入）
+│   ├── boom_0~4.png                      爆炸序列帧，11×11 ~ 34×31（已接入）
+│   ├── brick.png                         砖块，40×40（已接入地图）
+│   ├── brick_preview.png                 砖块放大预览图，200×200（仅生成时用，游戏不读）
+│   └── gameover.png                      游戏结束图，416×416（已接入 drawOver）
+│
+├── tools/                                Python 素材生成脚本（游戏运行不依赖）
+│   ├── extract_sprites.py                从图集里切出坦克/爆炸帧
+│   ├── survey_sprites.py                 统计图集里的素材分布
+│   ├── gen_sprites.py                    生成早期占位素材
+│   ├── gen_brick.py                      生成 brick.png
+│   └── gen_gameover.py                   生成 gameover.png
 │
 ├── src/com/pawamamama/
 │   ├── app/
 │   │   └── GameMain.java                 程序入口，只有一行 new GameFrame()
 │   │
 │   ├── game/
-│   │   ├── GameFrame.java    主窗口：初始化、状态机、双缓冲、绘制分发、按键、重绘线程、敌人管理
+│   │   ├── GameFrame.java    主窗口：初始化、状态机、双缓冲、绘制分发、按键、重绘线程、敌人管理、碰撞调度
 │   │   ├── Bullet.java       子弹：坐标/方向/速度/可见性、移动与出界判定
 │   │   └── Explode.java      爆炸：五帧动画、缩放、分帧播放、居中绘制
 │   │
 │   ├── Tank/                             ★ 坦克包
 │   │   ├── Tank.java         抽象父类：坐标/血量/攻击力/方向/状态、draw()、logic()、mathMove()、
-│   │   │                     fire()、collideBullets()、hurt()、die()、deawExlpodes()、内部类 BloodBar
+│   │   │                     fire()、collideBullets()、bulletCollideMapTiles()、hurt()、die()、
+│   │   │                     deawExlpodes()、内部类 BloodBar
 │   │   ├── MyTank.java       玩家坦克：只负责画自己的图
 │   │   └── EnemyTank.java    敌人坦克：画敌图 + ai() + resetAiTime() + createTank() 静态工厂
 │   │
+│   ├── map/                              ★ 地图包
+│   │   ├── GameMap.java      地图容器：19×14 格、计算居中偏移、随机摆放砖块、绘制、清理已销毁砖块
+│   │   └── MapTile.java      砖块：坐标、可见性、绘制、与一组子弹的扫掠碰撞
+│   │
 │   └── util/
 │       ├── Constant.java     全局常量（尺寸、状态、菜单、字体、刷新间隔、敌人参数）
-│       ├── MyUtil.java       工具类（随机数、随机颜色、随机名字、矩形碰撞、图片加载）
+│       ├── MyUtil.java       工具类（随机数、随机颜色、随机名字、矩形/扫掠碰撞、图片加载、借爆炸）
 │       ├── BulletsPool.java  子弹对象池 200/300
 │       ├── ExplodesPool.java 炸弹对象池 10/30
-│       └── EnemiesPool.java  敌人对象池 10/15
+│       ├── EnemiesPool.java  敌人对象池 10/15
+│       └── TilesPool.java    砖块对象池 200/400
 │
 └── README.md
 ```
@@ -97,7 +119,8 @@ newTank/
 | `app` | 启动 | 只有 `GameMain`，不承载任何游戏逻辑 |
 | `game` | 游戏运行时 | 窗口、渲染、子弹、爆炸 |
 | `Tank` | 坦克模型 | 抽象父类 + 两个具体子类 |
-| `util` | 通用设施 | 常量、工具、**三个对象池** |
+| `map` | 地图模型 | `GameMap` 地图容器 + `MapTile` 砖块 |
+| `util` | 通用设施 | 常量、工具、**四个对象池** |
 
 ### 2.3 依赖方向
 
@@ -113,7 +136,8 @@ newTank/
         │           ├─ 双缓冲                              │
         │           ├─ 按键分发                            │
         │           ├─ Tank myTank                         │
-        │           └─ List<Tank> enemyTanks               │
+        │           ├─ List<EnemyTank> enemyTanks          │
+        │           └─ GameMap gameMap                     │
         │                                                  │
         │           Bullet ── 依赖 Tank（取方向和速度）     │
         │           Explode ── 依赖 Tank（取 RADIUS 算缩放）│
@@ -121,35 +145,47 @@ newTank/
                 │                      │
                 ▼                      ▼
         ┌───────────────┐      ┌──────────────────────────┐
-        │  Tank 层      │      │  util 层                 │
-        │  Tank(抽象)   │      │  Constant   常量池        │
-        │   ├ MyTank    │◄─────┤  MyUtil     工具          │
-        │   └ EnemyTank │      │  BulletsPool 子弹池       │
-        └───────────────┘      │  ExplodesPool 炸弹池      │
-                               │  EnemiesPool  敌人池      │
-                               └──────────────────────────┘
+        │  Tank 层      │      │  map 层                  │
+        │  Tank(抽象)   │      │  GameMap   地图容器       │
+        │   ├ MyTank    │      │  MapTile   砖块           │
+        │   └ EnemyTank │      └────────────┬─────────────┘
+        └───────┬───────┘                   │
+                ▼                           ▼
+        ┌──────────────────────────────────────────────────┐
+        │  util 层                                         │
+        │  Constant   常量池   MyUtil     工具              │
+        │  BulletsPool 子弹池  ExplodesPool 炸弹池          │
+        │  EnemiesPool 敌人池  TilesPool   砖块池           │
+        └──────────────────────────────────────────────────┘
 ```
 
 **几点事实**：
 
 - `Tank` 依赖 `game.GameFrame`（读 `GameFrame.titleBarHeight`）
-- `Tank` 依赖 `util.BulletsPool`（开火借子弹）、`util.ExplodesPool`（命中借爆炸）
+- `Tank` 依赖 `util.BulletsPool`（开火借子弹）、`util.ExplodesPool`（命中借爆炸）、`util.TilesPool`（砖块被打碎后归还）
+- `Tank` 依赖 `map.MapTile`（子弹与砖块碰撞、读砖块坐标）
 - `EnemyTank` 依赖 `game.GameFrame`（同上）+ `util.MyUtil`（随机位置）
 - `EnemyTank` 依赖 `util.BulletsPool`（归还残留子弹）、`util.EnemiesPool`（自己进出池子）
 - `Bullet` 依赖 `Tank.Tank`（取 `DIR_*` 和 `DEFAULT_SPEED`）、`game.GameFrame`（同上）
 - `Explode` 依赖 `Tank.Tank`（取 `RADIUS` 算缩放倍数）
+- `GameMap` 依赖 `Tank.Tank`（取 `RADIUS` 算格子大小）、`util.Constant`（画布尺寸）、
+  `util.TilesPool`（借砖块）、`util.MyUtil`（随机行列）、`game.GameFrame`（读 `titleBarHeight`）
+- `MapTile` 依赖 `Tank.Tank`（取 `RADIUS`）、`game.Bullet`（读坐标/方向/速度）、`util.MyUtil`（扫掠碰撞）
 - `util.BulletsPool` 依赖 `game.Bullet`
 - `util.ExplodesPool` 依赖 `game.Explode`
 - `util.EnemiesPool` 依赖 `Tank.EnemyTank`
+- `util.TilesPool` 依赖 `map.MapTile`
 
-**这里有一个循环**：`game.GameFrame` → `Tank.*` → `game.GameFrame`。
+**这里有一个循环**：`game.GameFrame` → `Tank.*` → `game.GameFrame`；
+`game.GameFrame` → `map.GameMap` → `game.GameFrame`（读 `titleBarHeight`）也是同一类环。
 
 能跑，因为 Java 是整体编译，不同包之间循环引用合法。只是说明「`titleBarHeight`
 被当成全局配置用了」——以后如果把它挪进 `Constant`，这个环就断了，依赖方向会干净很多。
 
 > **`util` → `Tank` 的反向依赖**：`EnemiesPool` 需要 `import com.pawamamama.Tank.EnemyTank`，
-> 破了「util 不认识游戏对象」的约定。三个池里只有它这样。以后若要把池子挪包，
-> 应该挪到 `Tank` 或新建 `pool` 包。
+> 破了「util 不认识游戏对象」的约定。四个池里只有它这样
+> （`TilesPool` 依赖的是 `map.MapTile`，`BulletsPool`/`ExplodesPool` 依赖 `game` 包）。
+> 以后若要把池子挪包，应该挪到对应模型包或新建 `pool` 包。
 
 ### 2.4 继承体系（重构后的核心结构）
 
@@ -177,6 +213,7 @@ newTank/
                     │    drawBullets()     画+回收      │
                     │    drawName()        名字居中     │
                     │    collideBullets()  碰撞检测     │
+                    │    bulletCollideMapTiles() 子弹↔砖块│
                     │    hurt()            扣血         │
                     │    die()             死亡分派     │
                     │    isDie()           血量判定     │
@@ -273,14 +310,23 @@ private BufferedImage bufferedImage =
         new BufferedImage(FRAME_WIDTH, FRAME_HEIGHT, BufferedImage.TYPE_4BYTE_ABGR);
 
 public void update(Graphics g1) {
+    Graphics2D screen = (Graphics2D) g1;
+    screen.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+            RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);  // 贴屏也最近邻
+
     Graphics2D g = (Graphics2D) bufferedImage.getGraphics();  // ① 图片的画笔
     switch (gameState) { ... }                                // ② 全画到图片上
-    g1.drawImage(bufferedImage, 0, 0, this);                  // ③ 整张图贴到屏幕
+    // ③ 整张图从 900×700 放大到 1350×1050 贴到屏幕
+    screen.drawImage(bufferedImage, 0, 0, WIN_WIDTH, WIN_HEIGHT, this);
 }
 ```
 
 **关键差别**：①②全在内存里完成，屏幕一帧都没变；只有③那一瞬间整块像素同时更新。
 所以看不到闪，也看不到画到一半的样子。
+
+**两次缩放都要最近邻**：逻辑画布 900×700 → 缓冲区 900×700（1:1），
+贴屏时再放大 1.5 倍到 1350×1050。只给缓冲区设渲染提示、不给屏幕设，
+第二次放大仍会发糊。
 
 两个画笔别搞混：
 
@@ -380,15 +426,23 @@ public void run() {
 private void drawRun(Graphics g) {
     g.setColor(Color.BLACK);
     g.fillRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);  // ① 清屏（清缓冲区）
-    drawEnemyTanks(g);                             // ② 画敌人
-    myTank.draw(g);                                // ③ 画玩家（最后画，压在上面）
+    gameMap.draw(g);                               // ② 画地图（最底层）
+    drawEnemyTanks(g);                             // ③ 画敌人
+    myTank.draw(g);                                // ④ 画玩家（压在敌人上面）
+    drawExplodes(g);                               // ⑤ 画爆炸（覆盖在最上层）
+    bulletCollideTank();                           // ⑥ 子弹 ↔ 坦克
+    bulletCollideMapTile();                        // ⑦ 子弹 ↔ 砖块 + 清理碎砖
 }
 ```
 
 **顺序不能反**。双缓冲下这个错误更"持久"：缓冲区是复用的同一张 `BufferedImage`，
 一旦某帧没涂满，旧像素会一直留着，直到某帧把它盖掉。
 
+**为什么地图先画**：地图是背景层，后画的敌人和坦克会覆盖在砖块上面。
 **为什么玩家最后画**：AWT 没有 z 序管理，后画的覆盖先画的。玩家在最上层符合直觉。
+
+**碰撞检测放在绘制之后**：这一帧先把当前状态画出来，再统一结算命中。
+命中的子弹/砖块要到下一帧才从列表里消失，所以视觉上会晚 30ms，肉眼看不出。
 
 ### 4.4 按键事件的「按下 / 松开」模型
 
@@ -534,18 +588,19 @@ public static void theReturn(Bullet bullet) {
 **副作用**：池子**只涨不缩**。峰值到过 250，之后就算平时只有 10 颗在飞，
 池里永远躺着 250 个空壳。占用很小（一个 Bullet 约 40 字节），可以不管。
 
-#### 三个池对比
+#### 四个池对比
 
-| 项 | BulletsPool | ExplodesPool | EnemiesPool |
-|---|---|---|---|
-| `DEFAULT_POOL_SIZE` | 200 | **10** | **10** |
-| `MAX_POOL_SIZE` | 300 | **30** | **15** |
-| 类型 | `Bullet` | `Explode` | `EnemyTank` |
-| 创建频率 | 每秒十几颗 | 每次击杀 | **5 秒一辆** |
-| 归还前要不要清理内部集合 | 否 | 否 | **要** |
+| 项 | BulletsPool | ExplodesPool | EnemiesPool | TilesPool |
+|---|---|---|---|---|
+| `DEFAULT_POOL_SIZE` | 200 | **10** | **10** | **200** |
+| `MAX_POOL_SIZE` | 300 | **30** | **15** | **400** |
+| 类型 | `Bullet` | `Explode` | `EnemyTank` | `MapTile` |
+| 创建频率 | 每秒十几颗 | 每次击杀 | **5 秒一辆** | **每局 19 块，打碎才回收** |
+| 归还前要不要清理内部集合 | 否 | 否 | **要** | 否 |
 
 **池子大小按「同屏最大并发数」估，不是按「创建频率」。**
 子弹同屏可能几十颗，爆炸同时最多几个，敌人同屏上限 10 辆。
+砖块同屏上限按整屏铺满算：900/40 ≈ 22 列 × 700/40 ≈ 17 行 ≈ 374 块，所以上限取 400。
 
 #### ⚠️ 敌人池的特殊性：归还前必须清理内部集合
 
@@ -744,11 +799,14 @@ public class GameMain {
 | 常量 | 值 | 用途 |
 |---|---|---|
 | `GAME_TITLE` | 坦克大战第二版:pawamamama | 窗口标题 |
-| `FRAME_WIDTH` | 900 | 窗口宽 |
-| `FRAME_HEIGHT` | 700 | 窗口高 |
+| `FRAME_WIDTH` | 900 | 逻辑画布宽 |
+| `FRAME_HEIGHT` | 700 | 逻辑画布高 |
+| `MULTIPLE` | 1.5 | 窗口显示缩放倍数 |
+| `WIN_WIDTH` / `WIN_HEIGHT` | 1350 / 1050 | 实际窗口尺寸（逻辑尺寸 × 1.5） |
 | `STATE_MENU` ~ `STATE_OVER` | 0 ~ 4 | 游戏状态 |
 | `MENUS` | 5 个字符串 | 菜单项，用数组便于遍历 |
-| `FONT` | 宋体 24 加粗 | 全局字体 |
+| `OVER_STR0` / `OVER_STR1` | ESC / ENTER 提示 | 游戏结束界面两行文字 |
+| `FONT` / `SMALL_FONT` | 宋体 24 / 16 加粗 | 全局字体 / 坦克名字字体 |
 | `REPAINT_INTERVAL` | 30 | 重绘间隔（毫秒） |
 | `ENEMY_MAX_COUNT` | 10 | 同屏敌人上限 |
 | `ENEMY_BORN__INTERVAL` | 5000 | 敌人生成间隔（毫秒） |
@@ -861,6 +919,43 @@ public static final boolean isRectangleCollision(int rectX, int rectY, int radiu
 **为什么是「方框」不是「圆」**：坦克画的是圆（`fillOval`），但判定用方框。
 斜角位置会出现「看着没碰到却算打中」。见 11.3 圆碰撞。
 
+#### sweptCollision —— 扫掠碰撞（子弹不穿砖块的关键）
+
+```java
+public static final boolean sweptCollision(int rectX, int rectY, int rectRadius,
+                                           int pointX, int pointY, int dir, int speed) {
+    int oldX = pointX;
+    int oldY = pointY;
+    for (int step = 0; step < speed; step++) {   // 一帧走几步就查几次
+        switch (dir) {
+            case Tank.DIR_UP:    oldY--; break;
+            case Tank.DIR_DOWN:  oldY++; break;
+            case Tank.DIR_LEFT:  oldX--; break;
+            case Tank.DIR_RIGHT: oldX++; break;
+        }
+        if (isRectangleCollision(rectX, rectY, rectRadius, oldX, oldY)) {
+            return true;
+        }
+    }
+    return false;
+}
+```
+
+**为什么不能只判断「子弹这一帧的终点」**：子弹每帧走 8 像素（`Bullet.DEFAULT_SPEED = 8`），
+而砖块逻辑尺寸是 40×40。正常不会穿过，但如果以后调高子弹速度、或砖块做小，
+终点判定会出现「上一帧在砖块前、下一帧在砖块后」的穿透。
+
+**扫掠碰撞 = 把这一帧走过的整条线段逐像素查一遍**：
+从当前坐标开始，按方向走 `speed` 步（每步**先移动、再判定**），
+每走 1 像素用 `isRectangleCollision` 查一次。
+只要中途任何一点进入砖块方框，就判定命中，并把子弹设为不可见。
+
+**为什么是逐像素而不是直接比较线段和矩形**：逐像素实现最直观、不用处理线段与矩形求交的边界情况；
+一帧最多 8 次判断，性能完全够用。
+
+**参数里的 `rectRadius` 是砖块半径（20）**，所以砖块的判定范围是
+以 `(x + RADIUS, y + RADIUS)` 为中心、边长 40 的方框，和 40×40 的贴图完全重合。
+
 #### createImg —— 统一图片加载
 
 ```java
@@ -869,7 +964,31 @@ public static Image createImg(String path) {
 }
 ```
 
-`MyTank` / `EnemyTank` / `Explode` 的静态块都用它，避免三处重复写 `Toolkit.getDefaultToolkit()`。
+`MyTank` / `EnemyTank` / `Explode` / `MapTile` 的静态块都用它，
+避免多处重复写 `Toolkit.getDefaultToolkit()`。
+
+#### addExplode —— 从池子借一个设置好的爆炸
+
+```java
+public static Explode addExplode(int expectedNumber, int x, int y) {
+    if (expectedNumber > Explode.EXPLODE_FRAME_COUNT) {
+        expectedNumber = Explode.EXPLODE_FRAME_COUNT;   // 防御：帧数不能超过素材数
+    }
+    final Explode explode = ExplodesPool.get();
+    explode.setVisible(true);
+    explode.setIndex(0);                                // ★ 必须归零，否则接着上轮播
+    explode.setX(x);
+    explode.setY(y);
+    explode.setEndIndex(expectedNumber * Explode.SLOW); // SLOW 统一在这里乘
+    return explode;
+}
+```
+
+**为什么抽这个方法**：坦克被子弹打中、砖块被打碎，两处都要「借爆炸 + 重置 5 个字段」。
+以前两处各写一遍，漏一个 `setIndex(0)` 就会出现「爆炸一出现就消失」的脏数据 bug。
+现在所有重置集中在一处，调用方只关心「播几帧、在哪个坐标」。
+
+`Tank.collideBullets()` 和 `Tank.bulletCollideMapTiles()` 都改成了调用它。
 
 ### 5.4 `GameFrame.java` —— 主窗口
 
@@ -882,9 +1001,10 @@ public static Image createImg(String path) {
 | `bufferedImage` | `private BufferedImage` | 离屏缓冲区，900 × 700 |
 | `gameState` | `public static int` | 全局游戏状态 |
 | `menuIndex` | `private int` | 菜单当前选中项 |
-| `titleBarHeight` | `public static int` | 标题栏高度，`setVisible` 后取 `getInsets().top` |
+| `titleBarHeight` | `public static int` | 标题栏的**逻辑**高度，`setVisible` 后取 `getInsets().top / MULTIPLE` |
 | `myTank` | `private Tank` | 玩家坦克（**声明成父类型**，实际是 `MyTank`） |
-| `enemyTanks` | `private List<Tank>` | 全部敌人（泛型写 `Tank`，实际装 `EnemyTank`） |
+| `enemyTanks` | `private List<EnemyTank>` | 全部敌人（当前代码实际声明为 `List<EnemyTank>`） |
+| `gameMap` | `private GameMap` | 当前地图，`newGame()` 时创建，`restGame()` 时置空 |
 
 > **注意这两个字段声明的都是 `Tank` 而不是 `MyTank` / `EnemyTank`**。
 > 这叫「面向父类编程」——`drawRun` 里只需要知道"这是一辆坦克"，
@@ -894,11 +1014,12 @@ public static Image createImg(String path) {
 
 ```java
 setTitle(GAME_TITLE);
-setSize(FRAME_WIDTH, FRAME_HEIGHT);  // 设的是「窗口外框」尺寸
+setSize(WIN_WIDTH, WIN_HEIGHT);      // 设的是「窗口外框」尺寸，即 900×700 × 1.5
 setLocationRelativeTo(null);         // 居中
 setResizable(false);
 setVisible(true);                    // ★ 必须先显示
-titleBarHeight = getInsets().top;    // ★ 之后才拿得到真实边框
+// 取缩放后的实际标题栏高度，再除以 1.5 换算回逻辑坐标
+titleBarHeight = (int) (getInsets().top / MULTIPLE);
 ```
 
 **`getInsets()` 必须在 `setVisible(true)` 之后调用**，否则返回全 0。
@@ -911,7 +1032,7 @@ titleBarHeight = getInsets().top;    // ★ 之后才拿得到真实边框
 
 ```
 窗口外框 y=0   ┌──────────────────┐
-               │  标题栏           │  ← getInsets().top
+               │  标题栏           │  ← getInsets().top（物理像素，除以 MULTIPLE 才是逻辑值）
 画布原点 y=0   ├──────────────────┤  ★ Graphics 的原点在这里
                │                  │
                │   可绘区          │
@@ -929,8 +1050,12 @@ titleBarHeight = getInsets().top;    // ★ 之后才拿得到真实边框
 
 ```java
 public void update(Graphics g1) {
-    Graphics2D g = (Graphics2D) bufferedImage.getGraphics();      // 缓冲区的画笔
+    Graphics2D screen = (Graphics2D) g1;
+    // ★ 屏幕缩放也要用最近邻，否则整张图放大 1.5 倍时发糊
+    screen.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+            RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
 
+    Graphics2D g = (Graphics2D) bufferedImage.getGraphics();      // 缓冲区的画笔
     g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
             RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
     g.setFont(FONT);
@@ -943,7 +1068,8 @@ public void update(Graphics g1) {
         case STATE_OVER:  drawOver(g);  break;
     }
 
-    g1.drawImage(bufferedImage, 0, 0, this);                      // 整张贴屏
+    // 缓冲区 900×700 → 屏幕 1350×1050，两层都要最近邻才不会糊
+    screen.drawImage(bufferedImage, 0, 0, WIN_WIDTH, WIN_HEIGHT, this);
 }
 ```
 
@@ -955,18 +1081,39 @@ public void update(Graphics g1) {
 private void drawRun(Graphics g) {
     g.setColor(Color.BLACK);
     g.fillRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);   // 清屏
+    gameMap.draw(g);                               // 地图（最底层）
     drawEnemyTanks(g);                             // 敌人（可能 0~10 辆）
     myTank.draw(g);                                // 玩家
+    drawExplodes(g);                               // 坦克身上的爆炸
+    bulletCollideTank();                           // 子弹 ↔ 坦克
+    bulletCollideMapTile();                        // 子弹 ↔ 砖块
 }
 
 private void drawEnemyTanks(Graphics g) {
+    // 第一趟：只画活着的
     for (int i = 0; i < enemyTanks.size(); i++) {
-        enemyTanks.get(i).draw(g);
+        EnemyTank enemyTank = enemyTanks.get(i);
+        if (!enemyTank.isDie()) {
+            enemyTank.draw(g);
+        }
+    }
+    // 第二趟：倒序删「已死且爆炸播完」的，删完归还池子
+    for (int i = enemyTanks.size() - 1; i >= 0; i--) {
+        EnemyTank enemyTank = enemyTanks.get(i);
+        if (enemyTank.isDie() && enemyTank.isExplodeFinished()) {
+            enemyTanks.remove(i);
+            EnemiesPool.theReturn(enemyTank);
+        }
     }
 }
 ```
 
-> 这里用**索引 for**，而 `enemyTanks` 会被另一个线程往里 add（见 7.3）。
+**为什么删除要放在这里、而不是 `Tank.die()` 里**：
+`die()` 只是把血量判成 0；这一帧还要靠 `drawExplodes()` 把 5 帧死亡爆炸画完。
+如果 `die()` 立刻从列表里删掉，`drawExplodes()` 就遍历不到这辆坦克，
+**死亡爆炸永远画不出来**。所以必须等 `isExplodeFinished()` 为真再删（见 7.6）。
+
+> 这里用**索引 for**，而 `enemyTanks` 会被另一个线程往里 add（见 7.5）。
 
 #### drawMenu() —— 菜单绘制
 
@@ -1015,10 +1162,11 @@ case VK_ENTER: newGame(); break;
 
 ```java
 private void newGame() {
+    gameMap = new GameMap();                         // ① 先建地图
     gameState = STATE_RUN;
-    myTank = new MyTank(100, 100, Tank.DIR_DOWN);   // ① 创建玩家
+    myTank = new MyTank(100, 100, Tank.DIR_DOWN);    // ② 创建玩家
 
-    new Thread(() -> {                               // ② 独立线程生成敌人
+    new Thread(() -> {                               // ③ 独立线程生成敌人
         while (true) {
             if (enemyTanks.size() < ENEMY_MAX_COUNT) {
                 enemyTanks.add(EnemyTank.createTank());
@@ -1027,6 +1175,10 @@ private void newGame() {
                 Thread.sleep(ENEMY_BORN__INTERVAL);  // 每 5 秒一次
             } catch (InterruptedException e) {
                 e.printStackTrace();
+            }
+            // 只在 RUN 状态生产敌人；回菜单后旧线程自己退出
+            if (gameState != STATE_RUN) {
+                break;
             }
         }
     }).start();
@@ -1038,10 +1190,90 @@ private void newGame() {
 | 要点 | 说明 |
 |---|---|
 | 独立线程而不是在主循环里计数 | 生成间隔 5 秒，和 30ms 帧循环不同频；独立线程直接 `sleep` 最直观 |
-| `enemyTanks` 用 `List<Tank>` | 装的是 `EnemyTank`，但声明成父类型，`drawEnemyTanks` 里不用转型 |
+| `enemyTanks` 用 `List<EnemyTank>` | 实际只装 `EnemyTank`，`drawEnemyTanks` 里不用转型 |
 
 `myTank` 此刻之前是 `null`，所以 `drawRun` 必须在 `newGame` 之后才会被调到
 （只有 `STATE_RUN` 才走 `drawRun`）。
+
+> ⚠️ **仍有一个重入窗口**：旧线程 `sleep` 满 5 秒后才检查 `gameState`。
+> 如果玩家死亡后 5 秒内又开了一局，旧线程醒来时 `gameState` 已经是 `STATE_RUN`，
+> 它不会退出，于是同时有两条生成线程在造敌人。
+> 彻底解决要在 `GameFrame` 里保存线程引用，`newGame()` 前先 `interrupt()` 旧的，
+> 或者用 `AtomicInteger` 记录“本局编号”，线程只服务自己那一局。目前没做。
+
+#### restGame()、drawOver()、keyEventOver() —— 游戏结束与重开
+
+玩家血量归零时，`Tank.die()` 调到 `GameFrame.setGameState(STATE_OVER)`，
+下一帧 `update()` 走 `drawOver(g)`：
+
+```java
+private void drawOver(Graphics g) {
+    if (imgGameOVer == null) {                       // 只加载一次
+        imgGameOVer = MyUtil.createImg("res/gameover.png");
+    }
+    final int DRAW_W = 600, DRAW_H = 600;            // 原图 416×416，放大到 600
+    int x = FRAME_WIDTH - DRAW_W >> 1;               // 居中
+    int y = FRAME_HEIGHT - DRAW_H >> 1;
+    g.setColor(new Color(99, 99, 99));               // 和图片背景同色，四周不突兀
+    g.fillRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+    g.drawImage(imgGameOVer, x, y, DRAW_W, DRAW_H, this);
+    // 两行提示，用 FontMetrics 算真实文字宽度做水平居中
+    g.setColor(Color.WHITE);
+    FontMetrics fm = g.getFontMetrics();
+    g.drawString(OVER_STR0, FRAME_WIDTH - fm.stringWidth(OVER_STR0) >> 1, 520);
+    g.drawString(OVER_STR1, FRAME_WIDTH - fm.stringWidth(OVER_STR1) >> 1, 570);
+}
+```
+
+按 ESC 退出，按 ENTER 回主菜单：
+
+```java
+private void keyEventOver(int keyCode) {
+    if (keyCode == KeyEvent.VK_ESCAPE) {
+        System.exit(0);
+    } else if (keyCode == KeyEvent.VK_ENTER) {
+        restGame();               // 清掉本局对象
+        gameState = STATE_MENU;   // 回菜单，等玩家重新开始
+    }
+}
+
+private void restGame() {
+    menuIndex = 0;
+    myTank.bulletsReturn();       // 先把玩家子弹还池
+    myTank = null;                // 玩家坦克交给 GC（不在对象池里）
+    for (EnemyTank enemyTank : enemyTanks) {
+        enemyTank.bulletsReturn(); // 敌人子弹还池
+    }
+    enemyTanks.clear();           // ★ 注意：这里没有把敌人还回 EnemiesPool
+    gameMap = null;               // 地图连同砖块一起丢弃（砖块也没还 TilesPool）
+}
+```
+
+> ⚠️ **`restGame()` 只还子弹、不还敌人和砖块**：`enemyTanks.clear()` 和 `gameMap = null`
+> 会让这些对象直接变垃圾，`EnemiesPool` / `TilesPool` 里的可用对象会随重开次数减少，
+> 最终 `get()` 走 `new` 兜底，池化逐渐失效。见 10.2 的待修项。
+
+#### bulletCollideMapTile() —— 子弹与地图块的碰撞调度
+
+```java
+private void bulletCollideMapTile() {
+    final List<MapTile> tiles = gameMap.getTiles();
+    myTank.bulletCollideMapTiles(tiles);              // 玩家的子弹
+    for (EnemyTank enemyTank : enemyTanks) {
+        enemyTank.bulletCollideMapTiles(tiles);       // 每个敌人的子弹
+    }
+    gameMap.clearDestoryTile();                       // 清理被打碎的砖块
+}
+```
+
+**为什么是「砖块检查子弹」，而不是「子弹检查砖块」**：
+子弹属于坦克，所以由坦克把自己的 `bullets` 列表交给砖块；
+砖块用自己的 40×40 方框去遍历这组子弹。外层遍历砖块、内层遍历子弹，
+结构最直接，也不用让子弹知道地图的存在。
+
+> **归还只放在 `clearDestoryTile()`**：`Tank.bulletCollideMapTiles()` 只把砖块
+> `setVisible(false)`，等本帧所有坦克检查完，再从这里统一移除并归还。
+> 这样同一块砖只会进池一次（早期版本两处都归还，已修正）。
 
 ### 5.5 `Tank.java` —— 抽象父类
 
@@ -1310,23 +1542,12 @@ public void collideBullets(List<Bullet> bullets) {
             hurt(bullet);               // ② 扣血（里面可能触发 die()）
 
             // ③ 按扣血后的血量决定爆炸类型
-            final Explode explode = ExplodesPool.get();
+            //   受击：3 帧，位置用子弹命中点
+            //   死亡：5 帧，位置用坦克中心
             if (hp > 0) {
-                // 受击：3 帧，位置用子弹命中点
-                explode.setVisible(true);
-                explode.setIndex(0);
-                explode.setX(bullet_x);
-                explode.setY(bullet_y);
-                explode.setEndIndex(3 * Explode.SLOW);
-                explodes.add(explode);
+                explodes.add(MyUtil.addExplode(3, bullet_x, bullet_y));
             } else {
-                // 死亡：5 帧，位置用坦克中心
-                explode.setVisible(true);
-                explode.setIndex(0);
-                explode.setX(x);
-                explode.setY(y);
-                explode.setEndIndex(5 * Explode.SLOW);
-                explodes.add(explode);
+                explodes.add(MyUtil.addExplode(Explode.EXPLODE_FRAME_COUNT, x, y));
             }
         }
     }
@@ -1363,7 +1584,8 @@ private void hurt(Bullet bullet) {
 ```java
 private void die() {
     if (!isEnemy) {
-        //gameover todo
+        // 玩家死亡：切到游戏结束状态
+        GameFrame.setGameState(STATE_OVER);
     }
     //这里不处理敌方坦克，敌人没有死的概念，只是归还到对象池
 }
@@ -1374,6 +1596,39 @@ private void die() {
 敌人的归还统一在 `GameFrame.drawEnemyTanks()` 里做，条件是
 `isDie() && isExplodeFinished()`。**归还只能有一处**——如果这里也归还，
 对象会同时存在于 `enemyTanks` 列表和 `EnemiesPool` 池子里，坐标、血量全乱。
+
+#### bulletCollideMapTiles() —— 子弹打砖块
+
+```java
+public void bulletCollideMapTiles(List<MapTile> tiles) {
+    for (MapTile tile : tiles) {
+        if (tile.isCollideBullet(bullets)) {          // 砖块检查这辆坦克的所有子弹
+            explodes.add(MyUtil.addExplode(
+                    Explode.EXPLODE_FRAME_COUNT,          // 砖块用完整 5 帧爆炸
+                    tile.getX() + tile.RADIUS,            // 爆炸放在砖块中心
+                    tile.getY() + tile.RADIUS));
+            tile.setVisible(false);                   // 只标记，不在这里归还
+        }
+    }
+}
+```
+
+**归还只放在 `GameMap.clearDestoryTile()` 一处**：这里只把砖块标记为不可见，
+等本帧所有坦克都检查完，再由 `GameMap.clearDestoryTile()` 统一从列表移除并 `theReturn()`。
+如果这里也归还，同一块砖会进池两次（已修正）。
+
+**为什么不是「子弹检查砖块」，而是「砖块检查子弹」**：
+`MapTile.isCollideBullet(List<Bullet>)` 一次能检查这一辆坦克的全部子弹，
+外层只需要遍历砖块，少一层嵌套。子弹的坐标、方向、速度都是现成的。
+
+**为什么爆炸用 5 帧而不是受击的 3 帧**：砖块是一次性打碎，没有「受伤但还活着」的中间态，
+所以直接用完整的爆炸动画。爆炸坐标要加 `tile.RADIUS`，因为 `MapTile` 存的是左上角，
+而 `Explode` 画的是中心点。
+
+> ⚠️ **`isCollideBullet()` 没有检查 `bullet.isVisible()`**：同一帧里，子弹可能先在
+> `collideBullets()` 打中坦克并被设为不可见，后面砖块碰撞仍会拿它去判定，
+> 出现「一颗子弹既打中坦克又打碎砖块」。修复方式是在 `MapTile.isCollideBullet()`
+> 的循环开头加 `if (!bullet.isVisible()) continue;`。当前代码没加，见 10.2。
 
 #### isDie() / isExplodeFinished()
 
@@ -1586,27 +1841,36 @@ public class MyTank extends Tank {
 ```java
 public class EnemyTank extends Tank {
     private static Image[] enemyImg;
+    private long aiStartTime;              // 上次 AI 决策的时间
 
     static {
         enemyImg = new Image[4];
-        enemyImg[0] = Toolkit.getDefaultToolkit().getImage("res/enemy_up.png");
-        enemyImg[1] = Toolkit.getDefaultToolkit().getImage("res/enemy_down.png");
-        enemyImg[2] = Toolkit.getDefaultToolkit().getImage("res/enemy_left.png");
-        enemyImg[3] = Toolkit.getDefaultToolkit().getImage("res/enemy_right.png");
+        enemyImg[0] = MyUtil.createImg("res/enemy_up.png");
+        enemyImg[1] = MyUtil.createImg("res/enemy_down.png");
+        enemyImg[2] = MyUtil.createImg("res/enemy_left.png");
+        enemyImg[3] = MyUtil.createImg("res/enemy_right.png");
+    }
+
+    public EnemyTank() {                   // 给对象池用
+        super();
+        aiStartTime = System.currentTimeMillis();
     }
 
     public EnemyTank(int x, int y, int dir) {
         super(x, y, dir);
+        aiStartTime = System.currentTimeMillis();
     }
 
     @Override
     public void drawImgTank(Graphics g) {
+        ai();                              // ★ 决策放在画之前
         g.drawImage(enemyImg[getDir()], getX() - RADIUS + FIX, getY() - RADIUS + FIX,
                 RADIUS << 1, RADIUS << 1, null);
     }
 ```
 
-跟 `MyTank` 结构完全一样，只有图片数组不同。
+和 `MyTank` 的差别有三处：多了 `enemyImg`、多了 AI 计时字段 `aiStartTime`、
+`drawImgTank()` 里先调 `ai()` 再画图。
 
 #### createTank() —— 静态工厂方法（同时承担池化重置）
 
@@ -1942,11 +2206,11 @@ import com.pawamamama.Tank.EnemyTank;    // ← util 反过来依赖 Tank 包
 ```
 util → game（Bullet / Explode）
 util → Tank（EnemyTank）        ← EnemiesPool
-Tank → util（三个池都要用）
+Tank → util（子弹池 / 爆炸池 / 砖块池）
 ```
 
 `Tank ↔ util` 是**双向依赖**，Java 允许，但设计上不干净。
-真要理顺，得把三个池挪到 `Tank` 包或新建 `pool` 包。
+真要理顺，得把四个池挪到对应模型包或新建 `pool` 包。
 
 ### 5.12 `Explode.java` —— 爆炸
 
@@ -1977,6 +2241,190 @@ public void drawBoom(Graphics g)              // 画一帧 + index++
 > 早期版本构造器里乘过 `SLOW`、`setEndIndex` 没乘，导致 `setEndIndex(3)` 只播了 1 帧。
 > 现在统一由调用方乘，见 10.3 ③。
 
+### 5.13 `GameMap.java` —— 地图容器
+
+地图把画布划分成 **19 列 × 14 行**、每格 40×40 的网格，整图 760×560，
+在逻辑画布 900×700 里居中。
+
+#### 尺寸与偏移
+
+```java
+private final int MAP_WINTH  = 19 * Tank.RADIUS * 2;   // 19 × 40 = 760
+private final int MAP_HEIGHT = 14 * Tank.RADIUS * 2;   // 14 × 40 = 560
+
+// 水平：(900 - 760) / 2 = 70
+private final int MAP_X = (Constant.FRAME_WIDTH - MAP_WINTH) / 2;
+
+// 垂直：(titleBarHeight + 700 - 560) / 2 = (20 + 140) / 2 = 80
+private final int MAP_Y =
+        (GameFrame.titleBarHeight + Constant.FRAME_HEIGHT - MAP_HEIGHT) / 2;
+```
+
+| 值 | 计算 | 结果 |
+|---|---|---|
+| `MAP_X` | `(900 - 760) / 2` | 70 |
+| `MAP_Y` | `(titleBarHeight + 700 - 560) / 2`，`titleBarHeight ≈ 20` | 80 |
+| 地图右边界 | `MAP_X + 19 × 40` | 830 |
+| 地图下边界 | `MAP_Y + 14 × 40` | 640 |
+
+**为什么垂直要加 `titleBarHeight`**：`Graphics` 的 y=0 在可绘区顶部，
+而坦克活动区从标题栏下面才开始（`mathMove()` 用 `titleBarHeight + RADIUS` 当上界）。
+地图在「标题栏下面到画布底部」这一段里居中，视觉上才和坦克活动区对齐。
+
+> **拼写提示**：字段名是 `MAP_WINTH`，少了一个 `D`（应为 `WIDTH`）。
+> 不影响运行，但以后引用时容易拼错。
+
+#### initMap() —— 随机摆 19 块砖
+
+```java
+private void initMap() {
+    final int COUNT = 19;
+
+    for (int i = 0; i < COUNT; i++) {
+        MapTile mapTile = TilesPool.get();              // 从池子借，不是 new
+        int col = MyUtil.getRandomNumber(0, 19);        // 0 ~ 18
+        int row = MyUtil.getRandomNumber(0, 14);        // 0 ~ 13
+        mapTile.setX(MAP_X + col * 40);
+        mapTile.setY(MAP_Y + row * 40);
+        tiles.add(mapTile);
+    }
+}
+```
+
+**列/行随机范围是 `[0, 19)` 和 `[0, 14)`**：`getRandomNumber` 右开，
+所以最大取到 18 / 13，正好落在 19 列 × 14 行内，不会画到地图外面。
+
+**为什么 `col * 40` 而不是 `(col + 0.5) * 40`**：`MapTile` 存的是**左上角**坐标，
+`drawImage(tileImg, x, y, null)` 也从左上角开始画。格子编号乘 40 直接就是左上角。
+
+> ⚠️ **当前是纯随机摆放**：19 块砖可能落在同一个格子、互相重叠，
+> 也可能把出生点附近堵死。注释里写的「中心四边留 1.5 辆坦克宽的通道」还没有实现。
+> 下一步应改成手工二维数组或带约束的生成算法（见 10.2）。
+
+#### draw() / clearDestoryTile()
+
+```java
+public void draw(Graphics g) {
+    for (MapTile tile : tiles) {
+        tile.draw(g);
+    }
+}
+
+public void clearDestoryTile() {
+    for (int i = getTiles().size() - 1; i >= 0; i--) {   // 倒序删
+        MapTile tile = getTiles().get(i);
+        if (!tile.isVisible()) {
+            tiles.remove(i);
+            TilesPool.theReturn(tile);                   // 归还砖块池
+        }
+    }
+}
+```
+
+**倒序删**和 `Tank.drawBullets()` 是同一套理由：`remove(i)` 后元素前移，正序会漏元素。
+
+> **归还只在这一处**：`Tank.bulletCollideMapTiles()` 只负责 `setVisible(false)`，
+> 这里统一移除并归还，避免同一块砖进池两次。
+
+### 5.14 `MapTile.java` —— 砖块
+
+#### 字段与静态图
+
+```java
+public static int RADIUS = Tank.RADIUS;   // 20，格子半宽（当前代码没写 final）
+public static int tileW  = RADIUS << 1;   // 40（当前代码没写 final）
+private static Image tileImg;
+
+static {
+    tileImg = MyUtil.createImg("res/brick.png");  // 40×40，原生尺寸直接用
+}
+
+private int x, y;                 // 左上角
+private boolean isVisible = true; // 可见性，同时充当“已被打碎”标记
+```
+
+**砖块素材原生就是 40×40**，所以 `drawImage(tileImg, x, y, null)` 不需要缩放，
+和 40 像素的网格、40×40 的碰撞方框完全对齐。这一点和坦克（16×16 放大到 40）不同。
+
+> `tileW` 在 `draw()` 里只做了一次 `<= 0` 的兜底判断，实际绘制没有用它。
+> 保留它是为了以后从图片读取宽度，或者做砖块尺寸变化。
+
+#### draw() —— 不可见就不画
+
+```java
+public void draw(Graphics g) {
+    if (!isVisible) return;
+    if (tileW <= 0) {
+        tileW = tileImg.getWidth(null);
+    }
+    g.drawImage(tileImg, x, y, null);
+}
+```
+
+`isVisible` 不是给玩家看的“隐藏开关”，而是**打碎标记**：
+`Tank.bulletCollideMapTiles()` 把它置 `false`，表示这块砖已经没了，
+随后 `clearDestoryTile()` 据此把它移出列表并归还池子。
+
+#### isCollideBullet() —— 与一组子弹的碰撞
+
+```java
+public boolean isCollideBullet(List<Bullet> bullets) {
+    if (!isVisible) return false;                  // 碎砖不重复判定
+
+    for (Bullet bullet : bullets) {
+        Boolean collide = MyUtil.sweptCollision(
+                x + RADIUS, y + RADIUS, RADIUS,     // 砖块中心 + 半径 20
+                bullet.getX(), bullet.getY(),       // 子弹当前位置
+                bullet.getDir(), bullet.getSpeed()); // 本帧路径
+        if (collide) {
+            bullet.setVisible(false);              // 子弹消失
+            return collide;                        // 一块砖只吃一颗子弹
+        }
+    }
+    return false;
+}
+```
+
+**判定方框是 40×40**：中心 `(x + 20, y + 20)`、半径 20，和贴图、网格完全重合。
+
+**`sweptCollision` 而不是 `isRectangleCollision`**：子弹每帧 8 像素，
+只查终点在高速或小砖块时会穿透。扫掠判定把这一帧的 8 个像素点都查一遍，
+保证「路径上碰到就停」。
+
+**一次只销毁一块砖就 `return`**：一块砖被一颗子弹打碎后就不该再吃第二颗子弹，
+否则同一帧里多颗子弹会重复触发爆炸。
+
+> ⚠️ **仍有一个已知问题**：循环里没有判断 `bullet.isVisible()`。
+> 已经被坦克吃掉（`visible = false`）但还没从弹夹移除的子弹，仍可能打碎砖块。
+> 见 10.2，暂未修改。
+
+### 5.15 `TilesPool.java` —— 砖块池
+
+结构和其他三个池完全一致，只换类型和数量：
+
+```java
+public static final int DEFAULT_POOL_SIZE = 200;   // 初始预创建
+public static final int MAX_POOL_SIZE     = 400;   // 上限
+private static List<MapTile> pool = new ArrayList<MapTile>();
+
+private TilesPool() { }                            // 禁止 new
+
+static { for (int i = 0; i < DEFAULT_POOL_SIZE; i++) pool.add(new MapTile()); }
+
+public static MapTile get() { ... }                // 借出
+public static void theReturn(MapTile tile) { ... } // 归还
+```
+
+**为什么初始 200、上限 400**：
+每局只摆 19 块砖，200 个足够跑十局不扩容。
+上限按整屏铺满估：`900/40 ≈ 22` 列 × `700/40 ≈ 17` 行 ≈ 374 块，取整到 400。
+
+**`MapTile` 没有内部集合**，所以归还前不需要像 `EnemyTank` 那样清理 `bullets` / `explodes`。
+但**必须重置 `isVisible`**：池子里的对象可能是上一局被打碎的砖（`isVisible = false`），
+`GameMap.initMap()` 借出来直接 `setX/setY`，**没有 `setVisible(true)`**。
+如果上一局那块砖是被打碎的，新一局它会“隐形”且碰到子弹就再被销毁。
+这是当前代码里一个实际存在的脏数据隐患，见 10.2。
+
 ---
 
 ## 六、素材系统
@@ -1998,9 +2446,20 @@ public void drawBoom(Graphics g)              // 画一帧 + index++
 | `boom_2.png` | 16 × 16 | ✅ `Explode` 使用 |
 | `boom_3.png` | 28 × 29 | ✅ `Explode` 使用 |
 | `boom_4.png` | 34 × 31 | ✅ `Explode` 使用 |
+| `brick.png` | 40 × 40 | ✅ `MapTile` 使用（原生尺寸，不缩放） |
+| `brick_preview.png` | 200 × 200 | ⚠️ 仅供查看，游戏代码不读取 |
+| `gameover.png` | 416 × 416 | ✅ `GameFrame.drawOver` 使用（代码里放大到 600×600） |
 
-素材来源：NES 版 Battle City 官方图集（The Spriters Resource），
-按连通域分析切分提取（背景色 `(0,0,1)`，排除青色边框提示色）。
+素材来源分两类：
+
+- 坦克 / 爆炸：NES 版 Battle City 官方图集（The Spriters Resource），
+  按连通域分析切分提取（背景色 `(0,0,1)`，排除青色边框提示色），脚本在 `tools/extract_sprites.py`
+- 砖块 / 游戏结束图：本地 Python 脚本生成（`tools/gen_brick.py`、`tools/gen_gameover.py`），
+  不依赖原版素材，也不参与运行
+
+**`res/` 路径是相对工作目录的**：`Toolkit.getDefaultToolkit().getImage("res/xxx.png")`
+要求启动时的工作目录是项目根目录（IntelliJ 默认就是模块根目录）。
+如果从 `out/` 里直接 `java com.pawamamama.app.GameMain` 且工作目录不对，图片会加载不到。
 
 ### 6.2 为什么素材是 16×16，坦克却是 40×40
 
@@ -2021,6 +2480,9 @@ g.drawImage(img, getX() - RADIUS, getY() - RADIUS, RADIUS << 1, RADIUS << 1, nul
 **代价**：16 × 2.5 = 40 是**非整数倍**，某些像素块占 2 像素宽、某些占 3 像素宽，
 放大后不是绝对均匀。想完美对齐可以把 `RADIUS` 改成 24（16×3 = 48 = 24×2），
 或改成 16（16×2 = 32 = 16×2）。当前 40 是"够看就行"的折中。
+
+**砖块不走这条路**：`brick.png` 本身就是 40×40，`MapTile` 直接按原尺寸画，
+不存在非整数倍缩放的问题。这也是砖块比坦克看起来更“整”的原因。
 
 ### 6.3 FIX 偏移：素材不是绝对居中
 
@@ -2203,7 +2665,8 @@ if (Real_index >= EXPLODE_FRAME_COUNT || index >= endIndex) {
       └─ drawBullets(g)   → 遍历弹夹，每颗子弹自己 draw
              │
              ▼
-⑨ g1.drawImage(bufferedImage, 0, 0, this)   整张缓冲区贴到屏幕
+⑨ screen.drawImage(bufferedImage, 0, 0, WIN_WIDTH, WIN_HEIGHT, this)
+      整张缓冲区放大 1.5 倍贴到屏幕
       │
       ▼
 ⑩ 屏幕上的坦克往上挪了 4 像素
@@ -2331,7 +2794,57 @@ keyReleased → gameState==STATE_RUN → keyReleasedEventRun
 **「一次性事件」变成「持续一段时间的状态」**，靠的是把 `Explode` 对象放进 `List` 里，
 然后每帧遍历它——对象活多久，动画就播多久。
 
-### 7.4 敌人是怎么出现的
+### 7.4 子弹打中砖块：扫掠判定到归还池子
+
+```
+① 某一帧 drawRun 末尾 → bulletCollideMapTile()
+      │
+      ▼
+② List<MapTile> tiles = gameMap.getTiles()
+   myTank.bulletCollideMapTiles(tiles)
+   每个敌人也调一次
+      │
+      ▼
+③ Tank.bulletCollideMapTiles(tiles)
+      └─ 遍历砖块，对每块调 tile.isCollideBullet(bullets)
+             │
+             ▼
+④ MapTile.isCollideBullet(bullets)
+      └─ 遍历这辆坦克的全部子弹，调
+         MyUtil.sweptCollision(砖块中心, 砖块半径, 子弹坐标, 子弹方向, 子弹速度)
+             │
+             ▼
+       子弹本帧路径逐像素前进，任一点进入 40×40 方框 → 命中
+             │
+             ▼
+⑤ bullet.setVisible(false)        子弹消失
+   return true
+      │
+      ▼
+⑥ Tank 收到 true：
+      ├─ explodes.add(MyUtil.addExplode(5, tile中心X, tile中心Y))
+      └─ tile.setVisible(false)    只标记为碎，不归还
+      │
+      ▼
+⑦ GameFrame.bulletCollideMapTile 最后 → gameMap.clearDestoryTile()
+      └─ 倒序遍历 tiles，移除 !isVisible 的砖块
+         TilesPool.theReturn(tile)  ← 唯一的归还点
+      │
+      ▼
+⑧ 下一帧 gameMap.draw() 遍历 tiles，已经没有这块砖了
+```
+
+**关键点**：
+
+| 阶段 | 说明 |
+|---|---|
+| 碰撞由砖块发起 | 砖块提供 `isCollideBullet(List<Bullet>)`，一次检查一辆坦克的所有子弹 |
+| 用扫掠不用点判定 | 子弹 8 px/帧，点判定会漏掉路径中间的碰撞 |
+| 爆炸用完整 5 帧 | 砖块没有“受伤”状态，打中即碎 |
+| 爆炸坐标加 `RADIUS` | `MapTile` 存左上角，`Explode` 画中心点 |
+| 清理集中在一处 | `clearDestoryTile()` 统一从列表移除，但归还目前重复了 |
+
+### 7.5 敌人是怎么出现的
 
 这是之前新增的完整链路：
 
@@ -2400,7 +2913,7 @@ keyReleased → gameState==STATE_RUN → keyReleasedEventRun
 > 概率极低（5 秒一次 vs 30ms 一次），但真要根治得换 `CopyOnWriteArrayList`。
 > **目前不处理**，等真报 `ConcurrentModificationException` 再说。
 
-### 7.5 敌人从被打死到归还池子
+### 7.6 敌人从被打死到归还池子
 
 这是「敌人死亡处理」的完整链路，涉及三个类：
 
@@ -2415,7 +2928,7 @@ keyReleased → gameState==STATE_RUN → keyReleasedEventRun
       │            if (hp <= 0) die()
       ▼
 ④ die()   → 敌人：什么都不做（不归还！）
-      │     玩家：//gameover todo
+      │     玩家：GameFrame.setGameState(STATE_OVER)
       ▼
 ⑤ 回到 collideBullets，按扣血后的 hp 分流：
       ├─ hp > 0  → 受击爆炸（3 帧，命中点）
@@ -2522,8 +3035,10 @@ if (enemyTank.isDie() && enemyTank.isExplodeFinished()) {   // ✅ 等爆炸播�
 | 边界用 clamp | `Math.max` / `Math.min` | 不会越界，能精确贴边 |
 | 图片 static 缓存 | `static Image[]` + 静态块 | 每个类只读一次盘 |
 | 常量值当数组下标 | `tankImg[getDir()]` | 少写一层 switch 映射 |
-| 对象池 | `BulletsPool` / `ExplodesPool` / `EnemiesPool` | 三类高频对象反复复用，减少 GC |
+| 对象池 | `BulletsPool` / `ExplodesPool` / `EnemiesPool` / `TilesPool` | 四类高频对象反复复用，减少 GC |
 | `visible` 当回收旗 | 置 false → 下一帧归还 | 回收逻辑和绘制逻辑解耦 |
+| **地图分层** | `GameMap` 19×14 网格 + 居中偏移 | 砖块坐标、贴图、碰撞框三者用同一套 40 像素网格 |
+| **扫掠碰撞** | 按速度逐像素检查本帧路径 | 高速子弹不会“跳过”砖块 |
 | 独立生成线程 | `new Thread(lambda)` + `sleep` | 生成节奏和帧率解耦 |
 | **分帧动画** | `index / SLOW` 把播放帧和图片帧分开 | 一个数字控制播放速度 |
 | **每帧重算左上角** | `中心 - 该帧宽高/2` | 尺寸不同的帧也能围绕同一点炸开 |
@@ -2654,7 +3169,8 @@ public class FastEnemy extends EnemyTank { ... }
 public class BossEnemy extends EnemyTank { ... }
 ```
 
-`GameFrame` 里照样 `List<Tank> enemyTanks`，一行不用动。
+`GameFrame` 里现在声明的是 `List<EnemyTank> enemyTanks`（早期版本写成过 `List<Tank>`）；
+如果要下挂不同敌人子类，改回 `List<Tank>` 即可，调用面只有 `draw()` / `collideBullets()` 等父类方法。
 
 ---
 
@@ -2688,24 +3204,127 @@ public class BossEnemy extends EnemyTank { ... }
 | **血条**（内部类 `BloodBar`，三层叠加） | ✅ |
 | **敌人对象池**（10/15，含级联清理） | ✅ |
 | **敌人死亡完整处理**（防鞭尸 + 等爆炸播完 + 归还池子） | ✅ |
+| **gameover**（玩家死亡 → `STATE_OVER` → `gameover.png` + ESC/ENTER） | ✅ |
+| **重开**（`restGame()` 清子弹、敌人、地图，回菜单） | ✅ |
+| **地图层**（19 列 × 14 行、760×560 居中） | ✅ |
+| **砖块对象池**（`TilesPool` 200/400） | ✅ |
+| **子弹↔砖块碰撞**（扫掠判定，防穿透） | ✅ |
+| **砖块销毁 + 爆炸 + 回收** | ✅ |
+| **砖块贴图**（40×40 原生尺寸，与网格/碰撞框对齐） | ✅ |
 
-### 10.2 你代码里留的 TODO / 待接
+### 10.2 你代码里留的 TODO / 待修
+
+#### 功能未完成
 
 | 位置 | 内容 |
 |---|---|
-| **`Tank.die()`** | **`!isEnemy` 分支是空的 —— gameover 待接** |
-| **`GameFrame.drawOver`** | **空 —— 要画「游戏结束」界面** |
-| **`GameFrame.keyEventOver`** | **空 —— 要处理「按回车回菜单」** |
-| **`GameFrame.newGame`** | **无防重入 —— gameover 后重复调用会起多个生成线程** |
+| **坦克↔砖块移动碰撞** | **没有实现 —— 坦克现在能直接穿过砖块**（只有子弹会和砖块碰） |
+| **`GameMap.initMap()`** | 纯随机 19 块，可能重叠、可能堵住出生点；注释里的“中心四边留 1.5 辆坦克宽通道”没实现 |
 | `GameFrame.drawHelp` | 空 |
 | `GameFrame.drawAbout` | 空 |
 | `GameFrame.keyEventAbout` | 空 |
 | `GameFrame.keyEventHelp` | 空 |
 | `GameFrame.keyEventMenu` | `VK_ENTER` —— 5 个菜单项都走 `newGame()`，还没按 `menuIndex` 分发 |
+| 关卡 | 没有关卡数据/胜负条件；砖块数量固定 19，敌人无限生成 |
+
+#### 已发现、暂未修的正确性问题
+
+| 位置 | 问题 | 建议修法 |
+|---|---|---|
+| **砖块池脏数据** | `MapTile.isVisible` 可能残留上一局的 `false`；`GameMap.initMap()` 借出后没有 `setVisible(true)`，新砖块会“隐形” | **在 `TilesPool.get()` 里重置**（不要放在 `theReturn()`，理由见下方） |
+| **子弹一弹两用（低频）** | `MapTile.isCollideBullet()` 和 `Tank.collideBullets()` 都没判断 `bullet.isVisible()`；同一帧里一颗已命中的子弹还能打碎砖块，甚至伤害第二辆坦克。窗口只有一帧，实际很难察觉 | 两个循环开头都加 `if (!bullet.isVisible()) continue;`；按当前决定可暂缓 |
+| **重开泄漏池对象（后续优化，已记录）** | `restGame()` 只还子弹，`enemyTanks.clear()` 和 `gameMap = null` 没把敌人/砖块还回各自池子。各池 `get()` 有空池 `new` 兜底，所以游戏照常能玩，只是复用率下降 | 清理时遍历还 `EnemiesPool` / `TilesPool`；<br>⚠️ 还 `EnemyTank` 前要先清空它的 `bullets` 列表，否则下次 `createTank()` 会把同一批子弹再归还一次 |
+| **敌人生成线程重入（真 bug）** | 旧线程 `sleep` 满 5 秒才检查 `gameState`；5 秒内重开会让两条生成线程并存 | 保存线程引用，`newGame()` 前 `interrupt()` 旧的；或“局号”令牌 |
+
+> **#5 复现方式**：在敌人生成线程的循环里临时打印 `Thread.currentThread().getName()`，
+> 然后「开始游戏 → 玩家死亡 → 回车回菜单 → 5 秒内再回车开始」。
+> 两批敌人开始生成时，控制台会交替出现两个不同的线程名，说明旧线程没有退出。
+
+#### 记录：重开时的池对象泄漏（#4）
+
+**结论**：不是 Java 内存泄漏，是「对象池复用率泄漏」。
+游戏能正常运行，因为每个池的 `get()` 都有空池 `new` 兜底。
+
+**现象**：
+
+- 连续重开后，`EnemiesPool.get()` / `TilesPool.get()` 打印的 `pool size` 经常是 `0`
+- 生成敌人、砖块时 `new` 的次数变多
+- 玩家基本感知不到，只是 GC 次数增加
+
+**丢在哪**：
+
+| 对象 | `restGame()` 的处理 | 结果 |
+|---|---|---|
+| 敌人 | `enemyTanks.clear()` | 场上存活的敌人没有还回 `EnemiesPool` |
+| 地图砖块 | `gameMap = null` | 场上存活的砖块没有还回 `TilesPool` |
+| 子弹 | 已调用 `bulletsReturn()` | 正常归还 |
+
+**为什么还能玩**：
+
+```java
+// 每个池的 get()
+if (pool.size() == 0) {
+    obj = new Xxx();   // ← 空池兜底
+}
+```
+
+池子空了就现 `new`。这些新对象死亡/被打碎后又会归还，池子会慢慢回血，
+所以问题表现为「偶发多几次分配」，而不是崩溃。
+
+**修法（后续优化）**：
+
+```java
+private void restGame() {
+    menuIndex = 0;
+    myTank.bulletsReturn();
+    myTank = null;
+
+    for (int i = enemyTanks.size() - 1; i >= 0; i--) {
+        EnemyTank e = enemyTanks.remove(i);
+        for (Bullet b : e.getBullets()) {
+            BulletsPool.theReturn(b);
+        }
+        e.getBullets().clear();      // ★ 必须清，否则下次 createTank 会重复归还
+        EnemiesPool.theReturn(e);
+    }
+
+    if (gameMap != null) {
+        for (MapTile tile : gameMap.getTiles()) {
+            TilesPool.theReturn(tile);
+        }
+        gameMap = null;
+    }
+}
+```
+
+> ⚠️ **还 `EnemyTank` 前必须先清空 `bullets`**：`createTank()` 里也会把残留子弹归还一次。
+> 如果这里只 `theReturn` 不 `clear`，同一批子弹会进池两次，变成和早期砖块重复归还是一样的问题。
+
+> **为什么池重置放 `get()` 不放 `theReturn()`**：
+> `theReturn()` 的调用点可能发生在对象**仍在使用中**的时候（早期重复归还时就是如此），
+> 在归还路径改状态会把还在 `GameMap.tiles` 里的砖块“复活”，`clearDestoryTile()` 就删不掉它。
+> `get()` 是对象真正交付使用的唯一入口，在这里重置能保证「借出来的对象一定是干净的」，
+> 不依赖每个归还者是否记得清理。写法：
+>
+> ```java
+> public static MapTile get() {
+>     MapTile tile = pool.isEmpty() ? new MapTile() : pool.remove(0);
+>     tile.setVisible(true);   // 坐标由 GameMap 设置，不用在这里管
+>     return tile;
+> }
+> ```
+
+#### 代码整洁
+
+| 位置 | 内容 |
+|---|---|
+| `Tank.hurt` / 四个池的 `get()` / `theReturn()` | 有调试用的 `System.out.println`，每帧/每次借还都打印，控制台刷屏，上线要删 |
 | `Tank.bullets` / `Tank.explodes` | `new ArrayList()` 用了裸类型，可改成 `new ArrayList<>()` |
-| `Tank.getBullets()` / `getExplodes()` | 返回裸 `List`，可泛型化 |
-| `EnemyTank.createTank` | `int dir` 声明了但没用（`setDir(DIR_DOWN)` 用的是常量） |
-| `Tank.hurt` | 有调试用的 `System.out.println("atk: " + atk)`，上线要删 |
+| `Tank.getBullets()` / `setBullets()` | 返回/接收裸 `List`，可泛型化 |
+| `EnemyTank.createTank` | 局部变量 `int dir = DIR_DOWN;` 声明了但没用 |
+| `GameMap` | 字段名 `MAP_WINTH` 拼写错误（应为 `WIDTH`） |
+| `MapTile.tileW` | 只在 `draw()` 里做一次 `<= 0` 兜底，实际绘制未使用 |
+| `MyUtil.getRandomNumber` 等 | 方法声明成 `public static final`，`final` 对方法修饰合法但无意义（静态方法本来就不能重写） |
 
 **菜单分发的参考写法**（等你做到那一步）：
 
@@ -2829,6 +3448,18 @@ die() → theReturn → 对象进池子
 **但加了之后必须配防鞭尸**（`collideBullets` 开头 `if (isDie()) return`），
 否则尸体这 450ms 里还会挨打、还会加爆炸，`explodes` 永远不空，**死循环**。
 
+#### ⑧ 高速物体不能只判定「终点」
+
+**踩过的坑**：子弹每帧走 8 像素，早期只用「子弹当前坐标是否在砖块方框内」判定。
+如果某一帧起点在砖块前、终点在砖块后，就会**直接穿过去**。
+当前 40×40 的砖块还看不出来，但砖块一旦做小、或子弹速度提高，就会复现。
+
+**修法**：`MyUtil.sweptCollision()` 按方向把这一帧的 8 个像素点逐个检查，
+路径上任一点碰到就算命中。这类判定叫**扫掠碰撞（swept collision）**。
+
+**规律**：移动速度可能大于被撞物体厚度时，必须查「路径」而不是「终点」。
+以后做坦克移动碰撞、快速敌人、激光类武器都要注意。
+
 ---
 
 ## 十一、后续方向
@@ -2902,147 +3533,44 @@ public static final int[][] DIFFICULTY = {
 > private int speed = DEFAULT_SPEED;           // 每辆车自己的
 > ```
 
-### 11.2 gameover 接入点（**下一步**）
+### 11.2 gameover（已实现）
 
-**现状**：`Tank.die()` 里 `!isEnemy` 分支是空的
+这块已经不是待接点了，当前链路是完整的：
 
-```java
-private void die() {
-    if (!isEnemy) {
-        //gameover todo
-    }
-    //这里不处理敌方坦克，敌人没有死的概念，只是归还到对象池
-}
+```
+玩家 hp <= 0
+   │
+   ▼
+Tank.die()
+   └─ GameFrame.setGameState(STATE_OVER)
+   │
+   ▼
+下一帧 update() 走 drawOver()
+   ├─ 首次调用时加载 res/gameover.png（416×416）
+   ├─ 画布填 #636363（和图片底色一致）
+   └─ 图片放大到 600×600 居中 + 两行提示（ESC / ENTER）
+   │
+   ▼
+keyEventOver()
+   ├─ ESC   → System.exit(0)
+   └─ ENTER → restGame() → gameState = STATE_MENU
+                 ├─ menuIndex = 0
+                 ├─ myTank.bulletsReturn()
+                 ├─ myTank = null
+                 ├─ 每个敌人 bulletsReturn()
+                 ├─ enemyTanks.clear()
+                 └─ gameMap = null
 ```
 
-**三个接入点，按依赖顺序**：
+**时序**：`die()` 在 `collideBullets` → `hurt()` 里被调用，而这两步在 `drawRun()` **末尾**。
+玩家死的**当帧**，敌我坦克已经画完；`gameState` 变成 `STATE_OVER`
+要到**下一帧** `update()` 才生效。30ms 延迟，看不出问题。
 
-#### ① 玩家死亡 → 切状态
+**重开的注意点**：
 
-```java
-private void die() {
-    if (!isEnemy) {
-        GameFrame.gameState = STATE_OVER;
-    }
-}
-```
-
-`gameState` 是 `GameFrame` 的 `public static` 字段，`Tank` 已经依赖 `GameFrame`
-（`mathMove()` 里读 `titleBarHeight`），直接用没问题。
-
-#### ② 防重入（**必须做**）
-
-`newGame()` 每次都起一个**永不退出的死循环线程**：
-
-```java
-private void newGame() {
-    myTank = new MyTank(100, 100, Tank.DIR_DOWN);
-    new Thread(() -> {
-        while (true) {                          // ← 永远不会结束
-            if (enemyTanks.size() < ENEMY_MAX_COUNT) {
-                enemyTanks.add(EnemyTank.createTank());
-            }
-            Thread.sleep(ENEMY_BORN__INTERVAL);
-        }
-    }).start();                                 // ← 每次调用都起一个新的
-}
-```
-
-**现在没暴露**，因为没有回菜单的路径。**做完 gameover 后**：
-死 → 回菜单 → 再开始 → **两个生成线程同时跑**，敌人成倍出现，
-而且并发 `add` 的风险翻倍。
-
-**最小修法**：
-
-```java
-private boolean spawnThreadStarted = false;
-
-private void newGame() {
-    ...
-    if (!spawnThreadStarted) {
-        spawnThreadStarted = true;
-        new Thread(...).start();
-    }
-}
-```
-
-**更彻底的做法**：让线程检查状态，非运行中就不生成
-
-```java
-while (true) {
-    if (gameState == STATE_RUN && enemyTanks.size() < ENEMY_MAX_COUNT) {
-        enemyTanks.add(EnemyTank.createTank());
-    }
-    Thread.sleep(ENEMY_BORN__INTERVAL);
-}
-```
-
-#### ③ 重开时要重置战场
-
-`newGame()` 现在只做 `gameState = STATE_RUN` + `new MyTank(...)`，
-**没清上一局的敌人**。重开后 `enemyTanks` 里还留着上一局的残兵——
-它们的 `hp`、坐标、子弹全是旧的。
-
-```java
-private void newGame() {
-    // 清空上一局敌人，全部归还池子
-    for (int i = enemyTanks.size() - 1; i >= 0; i--) {
-        EnemyTank e = enemyTanks.get(i);
-        enemyTanks.remove(i);
-        EnemiesPool.theReturn(e);
-    }
-
-    gameState = STATE_RUN;
-    myTank = new MyTank(100, 100, Tank.DIR_DOWN);
-    ...
-}
-```
-
-> 不用在这里手动 `clearBullets()`——下次 `createTank()` 取到它时会清。
-
-#### ④ 绘制与按键
-
-`drawOver(g)` 和 `keyEventOver(keyCode)` 都还是空的：
-
-```java
-private void drawOver(Graphics g) {
-    g.setColor(Color.BLACK);
-    g.fillRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
-
-    g.setColor(Color.RED);
-    g.setFont(FONT);
-    g.drawString("游戏结束", FRAME_WIDTH / 2 - 48, FRAME_HEIGHT / 2);
-
-    g.setColor(Color.WHITE);
-    g.drawString("按回车返回菜单", FRAME_WIDTH / 2 - 84, FRAME_HEIGHT / 2 + 50);
-}
-
-private void keyEventOver(int keyCode) {
-    if (keyCode == KeyEvent.VK_ENTER) {
-        gameState = STATE_MENU;
-        menuIndex = 0;
-    }
-}
-```
-
-**`drawString` 的 x 要手算居中**：`FRAME_WIDTH/2 - 文字宽度/2`，
-和 `Tank.drawName()` 用的是同一套（`FontMetrics.stringWidth`）。
-上面写死的 `-48` / `-84` 是估算值，精确做法：
-
-```java
-FontMetrics fm = g.getFontMetrics();
-String s = "游戏结束";
-g.drawString(s, (FRAME_WIDTH - fm.stringWidth(s)) / 2, FRAME_HEIGHT / 2);
-```
-
-#### ⑤ 注意时序
-
-`die()` 在 `collideBullets` → `hurt()` 里被调用，而 `collideBullets` 在 `drawRun()` **末尾**。
-
-所以玩家死的**当帧**，`drawRun()` 已经执行了一半（敌我坦克都画完了），
-`gameState` 变成 `STATE_OVER` 要到**下一帧** `update()` 才生效。
-
-**30ms 的延迟，看不出问题。**
+- `restGame()` 只还子弹，敌人和砖块没有还回 `EnemiesPool` / `TilesPool`（见 10.2）
+- 敌人生成线程判断 `gameState != STATE_RUN` 后会 `break`，但检查在 `sleep(5000)` 之后，
+  所以存在 5 秒的重入窗口（见 10.2）
 
 #### 顺带：死人子弹为什么不管
 
@@ -3138,16 +3666,17 @@ public void drawImgTank(Graphics g) {
 
 | 待做 | 涉及 |
 |---|---|
-| **gameover** | **`Tank.die()` 玩家分支 + `drawOver` + `keyEventOver`（见 11.2）** |
-| 障碍物 / 围墙 | 新增地图层，绘制在坦克之前 |
-| 关卡 | 地图数据（二维数组）驱动障碍物生成 |
+| **坦克↔砖块移动碰撞** | `Tank.mathMove()` 里按下一格位置判断砖块，挡住就停在格子外（最优先） |
+| **关卡地图** | 用二维数组/文本地图替代 `GameMap.initMap()` 的随机 19 块 |
+| 砖块耐久 | 给 `MapTile` 加 `hp`，普通砖 1 发、钢砖多发，对应不同贴图 |
+| 地图边界 / 出生点保护 | 玩家和敌人出生位置留空，避免被砖块堵死 |
 | 敌人种类 | `EnemyTank` 变抽象，下挂普通/快速/Boss |
 | 得分 | 新增 `score` 字段，每种敌人不同分值 |
 | 爆炸音效 | 素材里没有音频，需另找 |
 | 暂停 | 加一个 `STATE_PAUSE`，`logic()` 不推进但继续画 |
 | 菜单分发 | `keyEventMenu` 按 `menuIndex` 分支（现在 5 项都走 `newGame`） |
 | 子弹全局管理 | 想修正「死人子弹消失」，得把子弹从坦克搬到 `GameFrame`（见 11.2 末） |
-| 三个池泛型化 | 学完反射后统一成 `GenericPool<T>`，现在是复制三份 |
+| 四个池泛型化 | 学完反射后统一成 `GenericPool<T>`，现在是复制四份 |
 | `enemyTanks` 换线程安全容器 | 目前 `ArrayList` 有理论并发风险，等真报错再换 |
 
 ---
