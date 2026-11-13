@@ -71,7 +71,8 @@ public abstract class Tank {
     protected final int FIX = 1;
     //血条内部类
     protected final BloodBar bloodBar = new BloodBar();
-
+    //上一帧xy坐标
+    private int oldX, oldY;
     public Tank() {
         initTank();
     }
@@ -206,7 +207,9 @@ public abstract class Tank {
     }
 
     private void mathMove() {
-
+        //记录上一次移动的坐标
+        oldX =  x;
+        oldY =  y;
         switch (dir) {
             case DIR_UP:
                 y = Math.max(GameFrame.titleBarHeight + RADIUS, y - speed);
@@ -380,9 +383,28 @@ public abstract class Tank {
                 explodes.add(MyUtil.addExplode(Explode.EXPLODE_FRAME_COUNT, tile.getX()+tile.RADIUS, tile.getY()+tile.RADIUS));
                 //设置地图块销毁
                 tile.setVisible(false);//设置为不可见
-               
+
             }
         }
+    }
+
+    /**
+     * 坦克和所有地图块的碰撞
+     * @param tiles 传入的地图块集合
+     * @return
+     */
+    public boolean isCollideTile(List<MapTile> tiles) {
+        for (MapTile tile : tiles) {
+            if (tile.isCollideTank(x, y, RADIUS)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    //坦克回退上一步
+    public void back() {
+        x = oldX;
+        y = oldY;
     }
 
     //内部类，来表示坦克的血条

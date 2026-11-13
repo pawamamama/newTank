@@ -178,7 +178,7 @@ public class GameFrame extends Frame implements Runnable {
         drawExplodes(g);
         //碰撞检测
         bulletCollideTank();
-        //坦克子弹碰撞地图块  
+        //坦克的子弹其本身碰撞地图块
         bulletCollideMapTile();
 
     }
@@ -455,7 +455,7 @@ public class GameFrame extends Frame implements Runnable {
         }
     }
 
-    //所有子弹和地图块碰撞
+    //坦克自己和子弹与地图块碰撞
     private void bulletCollideMapTile() {
         final List<MapTile> tiles = gameMap.getTiles();
         //自己的坦克和地图块的碰撞
@@ -464,7 +464,20 @@ public class GameFrame extends Frame implements Runnable {
         for (EnemyTank enemyTank : enemyTanks) {
             enemyTank.bulletCollideMapTiles(tiles);
         }
-        gameMap.clearDestoryTile();//清理所有被销毁的地图块
+        //-----------------------------------------
+        //-----------------------------------------
+        //-----------------------------------------
+        //玩家坦克和地图块的碰撞
+        if (myTank.isCollideTile(tiles)) {//玩家坦克和地图块碰上就得回退到走过的上一步
+            myTank.back();
+        }
+        //敌人坦克和地图块的碰撞
+       for (Tank enemy :enemyTanks) {
+           if (enemy.isCollideTile(tiles)) {
+               enemy.back();
+           }
+       }
+
     }
 
 
@@ -473,6 +486,7 @@ public class GameFrame extends Frame implements Runnable {
         for (EnemyTank enemyTank : enemyTanks) {
             enemyTank.deawExlpodes(g);
         }
+        gameMap.clearDestoryTile();//清理所有被销毁的地图块
         myTank.deawExlpodes(g);
     }
 

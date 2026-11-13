@@ -77,6 +77,39 @@ public class MapTile {
         }
         return false;
     }
+    /**
+     * 地图块的 8 个碰撞采样点
+     * 4 个角 + 4 条边的中点
+     */
+    class Points8 {
+        final int[] xs = new int[8];
+        final int[] ys = new int[8];
+
+        Points8() {
+            // 四个角
+            xs[0] = x;              ys[0] = y;
+            xs[1] = x + tileW;      ys[1] = y;
+            xs[2] = x;              ys[2] = y + tileW;
+            xs[3] = x + tileW;      ys[3] = y + tileW;
+
+            // 上下左右的边中点
+            xs[4] = x + tileW / 2;  ys[4] = y;
+            xs[5] = x + tileW / 2;  ys[5] = y + tileW;
+            xs[6] = x;              ys[6] = y + tileW / 2;
+            xs[7] = x + tileW;      ys[7] = y + tileW / 2;
+        }
+    }
+    //一个地图块和坦克发生碰撞了吗
+    public boolean isCollideTank(int tankX, int tankY, int tankRadius) {
+        Points8 points = new Points8();      // 每次 new，坐标才是最新的
+        for (int i = 0; i < points.xs.length; i++) {
+            if (MyUtil.isRectangleCollision(tankX, tankY, tankRadius,
+                    points.xs[i], points.ys[i])) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     public void setX(int x) {
         this.x = x;
