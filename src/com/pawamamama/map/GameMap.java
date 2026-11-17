@@ -35,11 +35,12 @@ public class GameMap {
     private final int MAP_Y = (GameFrame.titleBarHeight + Constant.FRAME_HEIGHT - MAP_HEIGHT) / 2;  // 80
     //游戏地图块的容器
     private List<MapTile> tiles = new ArrayList<>();
+    //玩家坦克老巢
+    private TankHouse tankHouse;
 
     public GameMap() {
         initMap();
     }
-
     /**
      * 初始化地图元素块,把地图分割成19*14的地图块
      * 先随机生成,
@@ -58,13 +59,21 @@ public class GameMap {
             mapTile.setY(MAP_Y + row * 40);
             tiles.add(mapTile);//把生成的地图添加在集合内
         }
-
+        //初始化
+        tankHouse = new TankHouse();
+        //添加到map
+        addTiles(tankHouse.getMap());
     }
 
     public void draw(Graphics g) {
+        //绘制所有的
         for (MapTile tile : tiles) {
             tile.draw(g);
         }
+
+    }
+    private void addTiles(List<MapTile> map) {
+        tiles.addAll(map);
     }
 
     /**
@@ -79,6 +88,7 @@ public class GameMap {
             }
         }
     }
+
     public List<MapTile> getTiles() {
         return tiles;
     }
