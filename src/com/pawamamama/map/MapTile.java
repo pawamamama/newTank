@@ -23,15 +23,15 @@ public class MapTile {
     public static int tileW = RADIUS << 1;
     static {
         tileImg = MyUtil.createImg("res/brick.png");
-      /*  if (tileW <= 0) {//大小
-            tileW = tileImg.getWidth(null);
-        }*/
+
     }
 
     private int x, y;
     private boolean isVisible = true;//可见性
+    private String name;//块名字
     /**
      * 无参构造：给对象池预创建对象用，坐标由池的使用方再设置
+     *
      */
     public MapTile() {
     }
@@ -40,17 +40,23 @@ public class MapTile {
         this.x = x;
         this.y = y;
     }
-
+    //
     //绘制块
     public void draw(Graphics g) {
         if (!isVisible)//不可键直接不绘制了
             return;
         if (tileW <= 0) {//大小
             tileW = tileImg.getWidth(null);
+
         }
         g.drawImage(tileImg, x, y, null);
+
+        //绘制块名字
+        if (name != null) {
+            g.setColor(Color.WHITE);
+            g.drawString(name, x, y+20);//绘制名字
+        }
     }
-    //块的碰撞
 
     /**
      * 地图块和一个坦克单位的子弹弹夹是否有碰撞，全场所有坦克的子弹不知道落到哪里所以这一步是对了
@@ -133,5 +139,13 @@ public class MapTile {
 
     public void setVisible(boolean visible) {
         isVisible = visible;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 }
