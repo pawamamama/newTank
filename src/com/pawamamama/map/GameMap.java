@@ -51,6 +51,7 @@ public class GameMap {
         for (int i = 0; i < COUNT; i++) {
             //随机得到一个地图块
             MapTile mapTile = TilesPool.get();
+            mapTile.setType(MapTile.TileType.BRICK);
             //x允许生成的范围，起点为地图x坐标，终点为了考虑到地图块本身的大小
             // 列号 0~18，行号 0~13
             int col = MyUtil.getRandomNumber(0, 19);
@@ -84,7 +85,7 @@ public class GameMap {
             MapTile tile = getTiles().get(i);
             if (!tile.isVisible()) {
                 tiles.remove(i);
-                TilesPool.theReturn(tile);
+                TilesPool.theReturn(tile);   // 先移出集合，再归还
             }
         }
     }

@@ -12,6 +12,8 @@ import java.util.List;
 
 import com.pawamamama.game.Bullet;
 
+import static com.pawamamama.map.MapTile.HitResult.HOUSE_DOWN;
+import static com.pawamamama.map.MapTile.HitResult.NEVERDIE;
 import static com.pawamamama.util.Constant.*;
 
 /**
@@ -73,6 +75,7 @@ public abstract class Tank {
     protected final BloodBar bloodBar = new BloodBar();
     //上一帧xy坐标
     private int oldX, oldY;
+
     public Tank() {
         initTank();
     }
@@ -208,8 +211,8 @@ public abstract class Tank {
 
     private void mathMove() {
         //记录上一次移动的坐标
-        oldX =  x;
-        oldY =  y;
+        oldX = x;
+        oldY = y;
         switch (dir) {
             case DIR_UP:
                 y = Math.max(GameFrame.titleBarHeight + RADIUS, y - speed);
@@ -378,18 +381,41 @@ public abstract class Tank {
     //坦克的子弹和地图所有的块碰撞,提取到坦克做爆炸效果
     public void bulletCollideMapTiles(List<MapTile> tiles) {
         for (MapTile tile : tiles) {
-            if (tile.isCollideBullet(bullets)) {
-                //添加爆炸效果,先弄完整爆炸效果
-                explodes.add(MyUtil.addExplode(Explode.EXPLODE_FRAME_COUNT, tile.getX()+tile.RADIUS, tile.getY()+tile.RADIUS));
-                //设置地图块销毁
-                tile.setVisible(false);//设置为不可见
-
+            if (tile.isCollideBullet(bullets)) {//检查打到块了吗
+                //打到了就获取当前块状态，一个坦克同时只能击杀一个块一定有先后除非块重叠
+                test2(tile.getHitResult());
             }
         }
     }
 
+    //负责接收块打中后的状态，处理爆炸行为，子弹行为由
+    private void test2(MapTile.HitResult hitResult) {
+        switch (hitResult) {
+            //块还在->小爆炸效果
+            case BLOCKED: explodes.add(MyUtil.addExplode(3, x, y));break;
+            //块没了->大爆炸
+            case DESTROYED: explodes.add(MyUtil.addExplode(Explode.EXPLODE_FRAME_COUNT, x, y));break;
+            //todo 块无法死亡->等子弹种类做出来
+            case NEVERDIE:break;
+            //家块死掉了，游戏结束，一秒延迟
+            case HOUSE_DOWN: new Thread() {
+                @Override
+                public void run() {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    GameFrame.setGameState(STATE_OVER);//设置游戏结束
+                }
+            }.start(); break;
+        }
+
+    }
+
     /**
      * 坦克和所有地图块的碰撞
+     *
      * @param tiles 传入的地图块集合
      * @return
      */
@@ -401,6 +427,7 @@ public abstract class Tank {
         }
         return false;
     }
+
     //坦克回退上一步
     public void back() {
         x = oldX;

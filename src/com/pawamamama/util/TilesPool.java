@@ -55,6 +55,8 @@ public class TilesPool {
         if (pool.size() == MAX_POOL_SIZE) {//池满就不要了，加快gc回收
             return;//return 时 形参销毁
         }
+        //归还时重置状态
+        tile.reset();
         pool.add(tile);
     }
 }
