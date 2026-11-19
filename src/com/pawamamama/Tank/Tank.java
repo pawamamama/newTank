@@ -2,7 +2,6 @@ package com.pawamamama.Tank;
 
 import com.pawamamama.game.Explode;
 import com.pawamamama.game.GameFrame;
-import com.pawamamama.map.GameMap;
 import com.pawamamama.map.MapTile;
 import com.pawamamama.util.*;
 
@@ -12,8 +11,6 @@ import java.util.List;
 
 import com.pawamamama.game.Bullet;
 
-import static com.pawamamama.map.MapTile.HitResult.HOUSE_DOWN;
-import static com.pawamamama.map.MapTile.HitResult.NEVERDIE;
 import static com.pawamamama.util.Constant.*;
 
 /**
@@ -383,13 +380,13 @@ public abstract class Tank {
         for (MapTile tile : tiles) {
             if (tile.isCollideBullet(bullets)) {//检查打到块了吗
                 //打到了就获取当前块状态，一个坦克同时只能击杀一个块一定有先后除非块重叠
-                test2(tile.getHitResult());
+                handleTileHit(tile.getHitResult());
             }
         }
     }
 
     //负责接收块打中后的状态，处理爆炸行为，子弹行为由
-    private void test2(MapTile.HitResult hitResult) {
+    private void handleTileHit(MapTile.HitResult hitResult) {
         switch (hitResult) {
             //块还在->小爆炸效果
             case BLOCKED: explodes.add(MyUtil.addExplode(3, x, y));break;

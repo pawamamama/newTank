@@ -100,8 +100,8 @@ public class MapTile {
                     bullet_x, bullet_y,
                     bullet.getDir(), bullet.getSpeed());
             if (bool) {
-                //调用地图块的状态让他状态变化
-                test(bullet);
+                //让地图块状态变化
+                takeHit(bullet);
                 return true;
             }
         }
@@ -112,7 +112,7 @@ public class MapTile {
      *
      * @return 返回子弹击中后的状态，并在该方法内负责块自己的状态变化，变化完成由
      */
-    public HitResult test(Bullet bullet) {
+    public HitResult takeHit(Bullet bullet) {
         switch (type) {
             //普通块打到直接 不可见
             case BRICK:
