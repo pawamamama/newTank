@@ -123,16 +123,18 @@ public class MapTile {
 
     /**
      * 地图块和一个坦克单位的子弹弹夹是否有碰撞，全场所有坦克的子弹不知道落到哪里所以这一步是对了
+     * 根据速度差不可能有两个子弹同时打到块的情况
      *
      * 11.17改成只负责看打没打到
      * 11.18改成负责状态
+     * 11.21改成返回打到的子弹
      *
      * @param bullets 坦克的弹夹
-     * @return
+     * @return Bullet 打到的坦克的子弹 null为没有打到
      */
-    public boolean isCollideBullet(List<Bullet> bullets) {
+    public Bullet isCollideBullet(List<Bullet> bullets) {
         if (!isVisible)//不可见直接不判断了
-            return false;
+            return null;//返回过去判断直接
         //子弹坐标
         for (Bullet bullet : bullets) {
             //子弹不可见
@@ -146,10 +148,10 @@ public class MapTile {
             if (bool) {
                 //让地图块状态变化
                 takeHit(bullet);
-                return true;
+                return bullet;
             }
         }
-        return false;
+        return null;
     }
 
     /**
@@ -158,7 +160,7 @@ public class MapTile {
      */
     public HitResult takeHit(Bullet bullet) {
         switch (type) {
-            //普通块打到直接 不可见
+            //普通块打到直接死亡
             case BRICK:
                 System.out.println("进入test");
                 bullet.setVisible(false);

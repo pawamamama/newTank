@@ -378,34 +378,43 @@ public abstract class Tank {
     //坦克的子弹和地图所有的块碰撞,提取到坦克做爆炸效果
     public void bulletCollideMapTiles(List<MapTile> tiles) {
         for (MapTile tile : tiles) {
-            if (tile.isCollideBullet(bullets)) {//检查打到块了吗
+            //局部变量来去接收
+            Bullet bullet;
+            if ((bullet = tile.isCollideBullet(bullets)) != null) {//检查打到块了吗,返回一个子弹直接认定是命中的子弹
                 //打到了就获取当前块状态，一个坦克同时只能击杀一个块一定有先后除非块重叠
-                handleTileHit(tile.getHitResult());
+                handleTileHit(tile.getHitResult(), tile,bullet);
             }
         }
     }
 
     //负责接收块打中后的状态，处理爆炸行为，子弹的行为由tile被打中的块接管
-    private void handleTileHit(MapTile.HitResult hitResult) {
+    private void handleTileHit(MapTile.HitResult hitResult, MapTile tile, Bullet bullet) {
         switch (hitResult) {
-            //块还在->小爆炸效果
-            case BLOCKED: explodes.add(MyUtil.addExplode(3, x, y));break;
+            //块还在->小爆炸效果,
+            case BLOCKED:
+                explodes.add(MyUtil.addExplode(3, bullet.getX(),bullet.getY()));
+                break;
             //块没了->大爆炸
-            case DESTROYED: explodes.add(MyUtil.addExplode(Explode.EXPLODE_FRAME_COUNT, x, y));break;
+            case DESTROYED:
+                explodes.add(MyUtil.addExplode(Explode.EXPLODE_FRAME_COUNT, tile.getX()+MapTile.RADIUS, tile.getY()+MapTile.RADIUS));
+                break;
             //todo 块无法死亡->等子弹种类做出来
-            case NEVERDIE:break;
+            case NEVERDIE:
+                break;
             //家块死掉了，游戏结束，一秒延迟
-            case HOUSE_DOWN: new Thread() {
-                @Override
-                public void run() {
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
+            case HOUSE_DOWN:
+                new Thread() {
+                    @Override
+                    public void run() {
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                        GameFrame.setGameState(STATE_OVER);//设置游戏结束
                     }
-                    GameFrame.setGameState(STATE_OVER);//设置游戏结束
-                }
-            }.start(); break;
+                }.start();
+                break;
         }
 
     }
