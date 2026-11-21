@@ -96,11 +96,29 @@ public class MapTile {
 
     //绘制块
     public void draw(Graphics g) {
-        if (!isVisible)//不可键直接不绘制了
+        if (!isVisible)//不可见直接不绘制了
             return;
-        
+        //所有素材都是 40×40，和格子 1:1，直接按原尺寸画
+        g.drawImage(imageOf(), x, y, null);
+    }
 
-
+    //按块种类取当前应该绘制的图片
+    private Image imageOf() {
+        switch (type) {
+            case STEEL:
+                //钢墙按剩余血量换图：hp 1~3 对应 重损 / 中损 / 完整
+                //钢墙只要可见 hp 一定 >= 1（打到 0 之前块已被隐藏），下标不会越界
+                return steelImgs[hp - 1];
+            case WATER:
+                return waterImg;
+            case GRASS:
+                return grassImg;
+            case HOUSE:
+                return houseImg;
+            case BRICK:
+            default:
+                return brickImg;
+        }
     }
 
     /**
