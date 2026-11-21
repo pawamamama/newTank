@@ -340,9 +340,8 @@ public abstract class Tank {
      */
     private void die() {
         if (!isEnemy) {
-            //gameover todo
-            //把游戏状态切换成gmaeover
-            GameFrame.setGameState(STATE_OVER);
+            //游戏结束
+            delaySecondsToOver(2000);
         }
         //这里不处理敌方坦克，敌人没有死的概念，只是归还到对象池
     }
@@ -373,16 +372,14 @@ public abstract class Tank {
         }
     }
 
-
-    //todo设置地图块销毁
     //坦克的子弹和地图所有的块碰撞,提取到坦克做爆炸效果
     public void bulletCollideMapTiles(List<MapTile> tiles) {
         for (MapTile tile : tiles) {
             //局部变量来去接收
             Bullet bullet;
-            if ((bullet = tile.isCollideBullet(bullets)) != null) {//检查打到块了吗,返回一个子弹直接认定是命中的子弹
+            if ((bullet = tile.isCollideBullet(bullets)) != null) {//检查打到块了吗
                 //打到了就获取当前块状态，一个坦克同时只能击杀一个块一定有先后除非块重叠
-                handleTileHit(tile.getHitResult(), tile,bullet);
+                handleTileHit(tile.getHitResult(), tile, bullet);
             }
         }
     }
@@ -392,28 +389,17 @@ public abstract class Tank {
         switch (hitResult) {
             //块还在->小爆炸效果,
             case BLOCKED:
-                explodes.add(MyUtil.addExplode(3, bullet.getX(),bullet.getY()));
+                explodes.add(MyUtil.addExplode(3, bullet.getX(), bullet.getY()));
                 break;
             //块没了->大爆炸
             case DESTROYED:
-                explodes.add(MyUtil.addExplode(Explode.EXPLODE_FRAME_COUNT, tile.getX()+MapTile.RADIUS, tile.getY()+MapTile.RADIUS));
+                explodes.add(MyUtil.addExplode(Explode.EXPLODE_FRAME_COUNT, tile.getX() + MapTile.RADIUS, tile.getY() + MapTile.RADIUS));
                 break;
-            //todo 块无法死亡->等子弹种类做出来
+            //todo 块无法死亡->等子弹种类做出来，这里不需要处理
             case NEVERDIE:
                 break;
-            //家块死掉了，游戏结束，一秒延迟
-            case HOUSE_DOWN:
-                new Thread() {
-                    @Override
-                    public void run() {
-                        try {
-                            Thread.sleep(1000);
-                        } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
-                        }
-                        GameFrame.setGameState(STATE_OVER);//设置游戏结束
-                    }
-                }.start();
+            case HOUSE_DOWN://游戏结束
+                delaySecondsToOver(2000);
                 break;
         }
 
@@ -438,6 +424,21 @@ public abstract class Tank {
     public void back() {
         x = oldX;
         y = oldY;
+    }
+
+
+    private void delaySecondsToOver(int milliseconds) {
+        new Thread() {
+            @Override
+            public void run() {
+                try {
+                    Thread.sleep(milliseconds);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                GameFrame.setGameState(STATE_OVER);//设置游戏结束
+            }
+        }.start();
     }
 
     //内部类，来表示坦克的血条
