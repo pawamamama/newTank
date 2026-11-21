@@ -63,19 +63,25 @@
 
 ```
 newTank/
-├── res/                                  图片素材（16 张 PNG）
+├── res/                                  图片素材（14 张 PNG）
 │   ├── player_up/down/left/right.png     我方坦克，四方向，16×16
 │   ├── enemy_up/down/left/right.png      敌方坦克，四方向，16×16
 │   ├── boom_0~4.png                      爆炸序列帧，11×11 ~ 34×31（已接入）
-│   ├── brick.png                         砖块，40×40（已接入地图）
-│   ├── brick_preview.png                 砖块放大预览图，200×200（仅生成时用，游戏不读）
-│   └── gameover.png                      游戏结束图，416×416（已接入 drawOver）
+│   ├── gameover.png                      游戏结束图，416×416（已接入 drawOver）
+│   └── tiles/                            地图块素材，全部 40×40
+│       ├── brick.png                     砖块（已接入地图）
+│       ├── brick_preview.png             砖块放大预览图，200×200（仅生成时用，游戏不读）
+│       ├── steel_hp3/hp2/hp1.png         钢墙三态：完整 / 中损 / 重损（待接入）
+│       ├── water.png                     水面，不透明（待接入）
+│       ├── grass.png                     草地，RGBA 透明底，上层遮挡（待接入）
+│       └── house.png                     老巢，单格金鹰（待接入）
 │
 ├── tools/                                Python 素材生成脚本（游戏运行不依赖）
 │   ├── extract_sprites.py                从图集里切出坦克/爆炸帧
 │   ├── survey_sprites.py                 统计图集里的素材分布
 │   ├── gen_sprites.py                    生成早期占位素材
-│   ├── gen_brick.py                      生成 brick.png
+│   ├── gen_brick.py                      生成 res/tiles/brick.png
+│   ├── gen_tiles.py                      生成 res/tiles/ 下钢墙三态/水/草/老巢
 │   └── gen_gameover.py                   生成 gameover.png
 │
 ├── src/com/pawamamama/
@@ -2336,7 +2342,7 @@ public static int tileW  = RADIUS << 1;   // 40（当前代码没写 final）
 private static Image tileImg;
 
 static {
-    tileImg = MyUtil.createImg("res/brick.png");  // 40×40，原生尺寸直接用
+    tileImg = MyUtil.createImg("res/tiles/brick.png");  // 40×40，原生尺寸直接用
 }
 
 private int x, y;                 // 左上角
@@ -2446,8 +2452,12 @@ public static void theReturn(MapTile tile) { ... } // 归还
 | `boom_2.png` | 16 × 16 | ✅ `Explode` 使用 |
 | `boom_3.png` | 28 × 29 | ✅ `Explode` 使用 |
 | `boom_4.png` | 34 × 31 | ✅ `Explode` 使用 |
-| `brick.png` | 40 × 40 | ✅ `MapTile` 使用（原生尺寸，不缩放） |
-| `brick_preview.png` | 200 × 200 | ⚠️ 仅供查看，游戏代码不读取 |
+| `tiles/brick.png` | 40 × 40 | ✅ `MapTile` 使用（原生尺寸，不缩放） |
+| `tiles/brick_preview.png` | 200 × 200 | ⚠️ 仅供查看，游戏代码不读取 |
+| `tiles/steel_hp3/hp2/hp1.png` | 40 × 40 | ⚠️ 已生成，待接入（按 hp 切换） |
+| `tiles/water.png` | 40 × 40 | ⚠️ 已生成，待接入 |
+| `tiles/grass.png` | 40 × 40 | ⚠️ 已生成，待接入（RGBA，画在坦克上层） |
+| `tiles/house.png` | 40 × 40 | ⚠️ 已生成，待接入 |
 | `gameover.png` | 416 × 416 | ✅ `GameFrame.drawOver` 使用（代码里放大到 600×600） |
 
 素材来源分两类：

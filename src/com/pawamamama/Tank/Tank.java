@@ -385,7 +385,7 @@ public abstract class Tank {
         }
     }
 
-    //负责接收块打中后的状态，处理爆炸行为，子弹行为由
+    //负责接收块打中后的状态，处理爆炸行为，子弹的行为由tile被打中的块接管
     private void handleTileHit(MapTile.HitResult hitResult) {
         switch (hitResult) {
             //块还在->小爆炸效果

@@ -18,39 +18,67 @@ import java.util.List;
  */
 @SuppressWarnings({"all"})
 public class MapTile {
-    private static Image tileImg;
+    //地图块资源
+    private static Image brickImg;
+    private static Image[] steelImgs;
+    private static Image waterImg;
+    private static Image grassImg;
+    private static Image houseImg;
+    //地图半径
     public static int RADIUS = Tank.RADIUS;
+    //直径
     public static int tileW = RADIUS << 1;
 
-    static {
-        tileImg = MyUtil.createImg("res/brick.png");
+    static {//地图块资源初始化
+        brickImg = MyUtil.createImg("res/tiles/brick.png");
+        waterImg = MyUtil.createImg("res/tiles/water.png");
+        grassImg = MyUtil.createImg("res/tiles/grass.png");
+        houseImg = MyUtil.createImg("res/tiles/house.png");
+        //钢块初始化，ai写的我复制的
+        steelImgs = new Image[TileType.STEEL.maxHp];//使用种类的最大血量来设置图片因为血量变化图片也会变化
+        for (int hp = 1; hp <= steelImgs.length; hp++) {
+            //正好是0-2 但是路径是1-3
+            steelImgs[hp - 1] = MyUtil.createImg("res/tiles/steel_hp" + hp + ".png");
+        }
+
     }
 
+    //地图块种类
+    private TileType type;
+    //地图块状态
+    private HitResult hitResult;
+    //块血量，可以根据hp表示破损程度,0表示不参与血量计算
+    private int hp;
 
-    //todo块种类枚举
+    private int x, y;
+    private boolean isVisible = true;//可见性
+
+    /**
+     * 块种类枚举，11.19添加数值来更方便的使用与创建
+     * 2026.11.19.11.09 忘了enum枚举使用，enum就是一个特化的类
+     */
     public enum TileType {
-        BRICK,//普通块 一血
-        STEEL,//钢块 三血
-        WATER,//水块 todo子弹可穿透 不参与血量计算也不能消失
-        GRASS,//草   todo最后做 敌人进去玩家看不见 不参与血量计算也不能消失
-        HOUSE //家   被敌人打了就死掉 一血
+        BRICK(1),//普通块 一血
+        STEEL(3),//钢块   三血
+        WATER(0),//水块   零血
+        GRASS(0),//草     零血 （块不消失）      敌人进去玩家看不见
+        HOUSE(1);//家  一血（打到后块不消失）
+
+        public final int maxHp;//各个地图块种类的最大血量，通过枚举的最大血量可以进行图片的快捷初始化和draw
+
+        TileType(int maxHp) {   // 枚举构造器不能写 public，隐式就是 private
+            this.maxHp = maxHp;
+        }
+
     }
 
-    //todo块状态枚举
+    //块状态枚举
     public enum HitResult {
         BLOCKED,     // 块还在
         DESTROYED,   // 块没了
         NEVERDIE,    //块无法死亡,坦克也无法打到
         HOUSE_DOWN   // 家被打中
     }
-
-    private TileType type;
-    private HitResult hitResult;
-    //血量，可以根据hp表示破损程度
-    private int hp;
-
-    private int x, y;
-    private boolean isVisible = true;//可见性
 
 
     /**
@@ -70,16 +98,14 @@ public class MapTile {
     public void draw(Graphics g) {
         if (!isVisible)//不可键直接不绘制了
             return;
-        if (tileW <= 0) {//大小
-            tileW = tileImg.getWidth(null);
+        
 
-        }
-        g.drawImage(tileImg, x, y, null);
 
     }
 
     /**
      * 地图块和一个坦克单位的子弹弹夹是否有碰撞，全场所有坦克的子弹不知道落到哪里所以这一步是对了
+     *
      * 11.17改成只负责看打没打到
      * 11.18改成负责状态
      *
@@ -144,6 +170,7 @@ public class MapTile {
         return getHitResult(); //这边直接获取返回
     }
 
+
     /*
      * 地图块的 8 个碰撞采样点
      * 4 个角 + 4 条边的中点
@@ -176,6 +203,8 @@ public class MapTile {
     }
 
     //一个地图块和坦克发生碰撞了吗
+
+
     public boolean isCollideTank(int tankX, int tankY, int tankRadius) {
         Points8 points = new Points8();      // 每次 new，坐标才是最新的
         for (int i = 0; i < points.xs.length; i++) {
@@ -195,22 +224,11 @@ public class MapTile {
 
         isVisible = true;
     }
-
+    //11.19 使用类型设置数值和状态9
     public void setType(TileType type) {
         this.type = type;
-        if (type == TileType.BRICK || type == TileType.HOUSE) {
-            //一血
-            this.hp = 1;
-            hitResult = HitResult.BLOCKED;
-        } else if (type == TileType.STEEL) {
-            //三血
-            this.hp = 3;
-            hitResult = HitResult.BLOCKED;
-        } else {
-            //不参与,无法被打坏
-            hitResult = HitResult.NEVERDIE;
-        }
-
+        this.hp = type.maxHp;
+        this.hitResult = (hp > 0) ? HitResult.BLOCKED : HitResult.NEVERDIE;
     }
 
     public void setX(int x) {
@@ -221,17 +239,38 @@ public class MapTile {
         this.y = y;
     }
 
+
     public int getX() {
         return x;
     }
+
 
     public int getY() {
         return y;
     }
 
+
     public boolean isVisible() {
         return isVisible;
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     public void setVisible(boolean visible) {
         isVisible = visible;
