@@ -43,6 +43,12 @@ public abstract class Tank {
     public static final int DEFAULT_HP = 1000;
     //坦克初始攻击力
     public static final int DEFAULT_ATK = 100;
+    // 每秒最多开火次数
+    public static final int FIRE_PER_SECOND = 8;
+    // 两次开火的最小间隔（毫秒）——编译期算好，运行时零开销
+    private static final long FIRE_COOLDOWN_MS = 1000L / FIRE_PER_SECOND;
+    // 上一次开火的时间戳，0 表示本局还没开过火
+    private long lastFireTime;
     //姓名
     private String name;
     //坐标
@@ -187,6 +193,7 @@ public abstract class Tank {
         }
         //加粗
         Graphics2D g2d = (Graphics2D) g.create();   // 拿副本，用完扔掉
+
         g2d.setStroke(new BasicStroke(3));          // 设粗
         g2d.setColor(color);
         g2d.drawLine(x, y, endX, endY);
@@ -230,6 +237,12 @@ public abstract class Tank {
     //创建一个子弹对象，子弹对象的属性通过坦克信息获得
     //然后将创建的子弹添加到弹夹容器中
     public void fire() {
+        long now = System.currentTimeMillis();//开火当前时间
+        if (now - lastFireTime < FIRE_COOLDOWN_MS) {//如果小于单次开火间隔
+            return; // 冷却中，这次开火直接丢弃
+        }
+        lastFireTime = now;
+
         int bulletX = x;
         int bulletY = y;
         switch (dir) {
@@ -254,7 +267,6 @@ public abstract class Tank {
         bullet.setX(bulletX);
         bullet.setY(bulletY);
         bullet.setDir(dir);
-        bullet.setAtk(atk);
         bullet.setColor(color);
         bullet.setVisible(true);
         bullets.add(bullet);
