@@ -484,10 +484,10 @@ public class GameFrame extends Frame implements Runnable {
     //绘制坦克的爆炸效果（包含地图块的爆炸，因为是子弹引起的爆炸，坦克承担这个行为）
     private void drawExplodes(Graphics g) {
         for (EnemyTank enemyTank : enemyTanks) {
-            enemyTank.deawExlpodes(g);
+            enemyTank.drawExlpodes(g);
         }
         gameMap.clearDestoryTile();//清理所有被销毁的地图块
-        myTank.deawExlpodes(g);
+        myTank.drawExlpodes(g);
     }
 
     //获得游戏状态和修改游戏状态

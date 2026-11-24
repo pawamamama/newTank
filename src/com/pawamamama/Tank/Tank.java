@@ -370,7 +370,7 @@ public abstract class Tank {
      *
      * @param g
      */
-    public void deawExlpodes(Graphics g) {
+    public void drawExlpodes(Graphics g) {
         for (Explode explode : explodes) {
             explode.drawBoom(g);
         }
