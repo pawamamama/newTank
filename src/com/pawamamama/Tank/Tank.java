@@ -113,8 +113,6 @@ public abstract class Tank {
         drawBullets(g);
         //名字
         drawName(g);
-        //血条
-        bloodBar.draw(g);
     }
 
     private void drawName(Graphics g) {

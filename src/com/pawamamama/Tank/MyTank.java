@@ -38,5 +38,7 @@ public class MyTank extends Tank {
                 RADIUS << 1,        // 目标宽 40（= RADIUS*2）
                 RADIUS << 1,        // 目标高 40
                 null);
+        //血条，26.11.24 对齐原版坦克大战调整到只有玩家坦克有血条
+        bloodBar.draw(g);
     }
 }
