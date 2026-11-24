@@ -56,6 +56,6 @@ public class ExplodesPool {
             return;//return 时 形参销毁
         }
         pool.add(explode);
-        System.out.println("对象池中归还了一个炸弹对象，数量为" +  pool.size());
+        //System.out.println("对象池中归还了一个炸弹对象，数量为" +  pool.size());
     }
 }

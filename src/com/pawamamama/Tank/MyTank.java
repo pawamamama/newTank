@@ -28,6 +28,8 @@ public class MyTank extends Tank {
 
     public MyTank(int x, int y, int dir) {
         super(x, y, dir);
+        //设置玩家坦克血量
+        setHp(1000);
     }
 
     @Override

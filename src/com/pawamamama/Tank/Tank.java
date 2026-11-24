@@ -39,8 +39,8 @@ public abstract class Tank {
     //默认速度
     public static final int DEFAULT_SPEED = 4;
     public static final int speed = DEFAULT_SPEED;//每次刷新跑4个像素
-    //坦克初始生命
-    public static final int DEFAULT_HP = 1000;
+    //坦克最大生命
+    public static final int MAX_HP = 1000;
     //坦克初始攻击力
     public static final int DEFAULT_ATK = 100;
     // 每秒最多开火次数
@@ -54,7 +54,7 @@ public abstract class Tank {
     //坐标
     private int x, y;
     //血量
-    private int hp = DEFAULT_HP;
+    private int hp;
     //攻击力
     private int atk = DEFAULT_ATK;
     //防御力
@@ -341,6 +341,7 @@ public abstract class Tank {
         System.out.println("atk: " + atk);
         hp -= atk;//减血量
         if (hp <= 0) {
+            System.out.println("玩家死亡");
             die();
         }
     }
@@ -487,7 +488,9 @@ public abstract class Tank {
             //必须「先乘后除」——写成 hp / DEFAULT_HP * BAR_LENGTH 的话，
             //整数除法会先把 hp/DEFAULT_HP 算成 0，血条永远是空的
             g.setColor(Color.RED);
-            g.fillRect(barX, barY, hp * BAR_LENGTH / DEFAULT_HP, BAR_HEIGHT);
+            g.fillRect(barX, barY, hp * BAR_LENGTH / MAX_HP, BAR_HEIGHT);
+            System.out.println( "hp = " + hp +  "default-hp = " + MAX_HP);
+            System.out.println("血条长度" + hp * BAR_LENGTH/ MAX_HP);
             g.setColor(Color.WHITE);
             g.drawRect(barX, barY, BAR_LENGTH, BAR_HEIGHT);
         }

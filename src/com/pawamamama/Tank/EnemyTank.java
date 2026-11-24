@@ -79,7 +79,7 @@ public class EnemyTank extends Tank {
         enemy.setDir(DIR_DOWN);
         enemy.setEnemy(true);
         enemy.setState(STATE_MOVE);
-        enemy.setHp(Tank.DEFAULT_HP);
+        enemy.setHp(100);//血量每个敌人不一样在创建时候应该设置默认值
         //清空敌人的的弹夹，防止污染
         //归还残留子弹（敌人死时可能有子弹没飞完）
         for (Bullet b : enemy.getBullets()) {
